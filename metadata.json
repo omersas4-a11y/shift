@@ -1,0 +1,6 @@
+{
+  "name": "SHIFT - מערכת ניהול מועדון",
+  "description": "מערכת ניהול למועדון סטודנטים בסגנון גיימינג הכוללת לוגיסטיקה, סילבוס, מועמדים ותקציבים.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

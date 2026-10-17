@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "Candidate": {
+      "title": "Candidate",
+      "description": "A student candidate",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "major": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected", "maybe"] },
+        "joinReason": { "type": "string" },
+        "level": { "type": "number" }
+      },
+      "required": ["name", "major", "status", "joinReason", "level"]
+    },
+    "Meeting": {
+      "title": "Meeting",
+      "description": "A scheduled meeting",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "location": { "type": "string" },
+        "lecturer": { "type": "string" },
+        "content": { "type": "string" }
+      },
+      "required": ["title", "date", "time", "location", "lecturer", "content"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "An expense item",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["title", "amount", "date", "category"]
+    },
+    "Equipment": {
+      "title": "Equipment",
+      "description": "Equipment inventory",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "status": { "type": "string", "enum": ["available", "in_use", "maintenance"] }
+      },
+      "required": ["name", "quantity", "status"]
+    },
+    "NextMeetingRequirement": {
+      "title": "NextMeetingRequirement",
+      "description": "Items required for next meeting",
+      "type": "object",
+      "properties": {
+        "personName": { "type": "string" },
+        "itemToBring": { "type": "string" },
+        "isBrought": { "type": "boolean" }
+      },
+      "required": ["personName", "itemToBring", "isBrought"]
+    }
+  },
+  "firestore": {
+    "/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/Candidate" },
+      "description": "List of candidates"
+    },
+    "/meetings/{meetingId}": {
+      "schema": { "$ref": "#/entities/Meeting" },
+      "description": "List of meetings"
+    },
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "List of expenses"
+    },
+    "/equipment/{equipmentId}": {
+      "schema": { "$ref": "#/entities/Equipment" },
+      "description": "List of equipment"
+    },
+    "/requirements/{requirementId}": {
+      "schema": { "$ref": "#/entities/NextMeetingRequirement" },
+      "description": "List of next meeting requirements"
+    }
+  }
+}

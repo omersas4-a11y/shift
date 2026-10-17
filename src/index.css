@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Heebo", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #FF5A00;
+  --color-brand-hover: #E04E00;
+  
+  --color-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-alt: var(--theme-surface-alt);
+  --color-border: var(--theme-border);
+  --color-text-main: var(--theme-text-main);
+  --color-text-muted: var(--theme-text-muted);
+}
+
+:root {
+  --theme-bg: #F3F4F6;
+  --theme-surface: #FFFFFF;
+  --theme-surface-alt: #E5E7EB;
+  --theme-border: #D1D5DB;
+  --theme-text-main: #111827;
+  --theme-text-muted: #374151; /* Darker muted text for better contrast */
+}
+
+:root.dark {
+  --theme-bg: #18181B; /* Zinc 900 */
+  --theme-surface: #27272A; /* Zinc 800 */
+  --theme-surface-alt: rgba(255,255,255,0.08);
+  --theme-border: #3F3F46; /* Zinc 700 */
+  --theme-text-main: #F4F4F5; /* Zinc 100 */
+  --theme-text-muted: #A1A1AA; /* Zinc 400 */
+}
+
+body {
+  background-color: var(--theme-bg);
+  color: var(--theme-text-main);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--theme-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-brand);
+}
+
+@layer components {
+  .gaming-card {
+    @apply bg-surface border border-border relative overflow-hidden transition-all duration-300 rounded-3xl;
+  }
+  .gaming-card:hover {
+    @apply border-brand shadow-[0_0_15px_rgba(255,90,0,0.15)];
+  }
+  .gaming-card::before {
+    content: '';
+    @apply absolute top-0 right-0 w-1 h-full bg-brand opacity-0 transition-opacity duration-300;
+  }
+  .gaming-card:hover::before {
+    @apply opacity-100;
+  }
+
+  /* Button Block Style */
+  .gaming-button, .gaming-button-outline {
+    @apply font-bold px-6 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all duration-100;
+    background-color: var(--theme-surface);
+    color: var(--theme-text-main);
+    border: 2px solid var(--theme-text-main);
+    box-shadow: 4px 4px 0px 0px var(--theme-text-main);
+  }
+
+  .gaming-button:hover, .gaming-button-outline:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px 0px var(--theme-text-main);
+  }
+
+  .gaming-button:active, .gaming-button-outline:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px 0px var(--theme-text-main);
+  }
+
+  :root.dark .gaming-button, :root.dark .gaming-button-outline {
+    box-shadow: 4px 4px 0px 0px var(--color-brand);
+    border-color: var(--theme-border);
+  }
+  :root.dark .gaming-button:hover, :root.dark .gaming-button-outline:hover {
+    box-shadow: 2px 2px 0px 0px var(--color-brand);
+  }
+  :root.dark .gaming-button:active, :root.dark .gaming-button-outline:active {
+    box-shadow: 0px 0px 0px 0px var(--color-brand);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--theme-border);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand);
+  }
+}
