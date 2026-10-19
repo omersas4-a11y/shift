@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Budget, Candidate, Equipment, Expense, Meeting, NextMeetingRequirement, ChatMessage } from './types';
 
 interface StoreState {
@@ -52,6 +52,7 @@ async function sendStoreAction(action: string, payload: unknown = {}) {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const pendingCandidateStatus = useRef(new Map<string, Candidate['status']>());
   const [state, setState] = useState<StoreState>(() => {
     const saved = localStorage.getItem('shift_guild_store');
     return saved ? { ...defaultState, ...JSON.parse(saved) } : defaultState;
@@ -67,7 +68,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const response = await fetch('/api/store', { credentials: 'same-origin', cache: 'no-store' });
         if (!response.ok) throw new Error(`Store request failed: ${response.status}`);
         const data = await response.json();
-        if (active) setState(s => ({ ...s, ...data, currentUser: s.currentUser }));
+        if (active) setState(s => ({
+          ...s,
+          ...data,
+          candidates: data.candidates.map((candidate: Candidate) => {
+            const pendingStatus = pendingCandidateStatus.current.get(candidate.id);
+            return pendingStatus ? { ...candidate, status: pendingStatus } : candidate;
+          }),
+          currentUser: s.currentUser,
+        }));
       } catch (error) {
         console.error('Store refresh failed:', error);
       } finally {
@@ -106,7 +115,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await sendStoreAction('candidate.addMany', { candidates: candidates.slice(start, start + 50) });
     }
   };
-  const updateCandidateStatus = async (id: string, status: Candidate['status']) => sendStoreAction('candidate.status', { id, status });
+  const updateCandidateStatus = async (id: string, status: Candidate['status']) => {
+    const previousStatus = state.candidates.find(candidate => candidate.id === id)?.status ?? 'pending';
+    pendingCandidateStatus.current.set(id, status);
+    setState(s => ({
+      ...s,
+      candidates: s.candidates.map(candidate => candidate.id === id ? { ...candidate, status } : candidate),
+    }));
+
+    try {
+      await sendStoreAction('candidate.status', { id, status });
+    } catch (error) {
+      if (pendingCandidateStatus.current.get(id) === status) pendingCandidateStatus.current.delete(id);
+      setState(s => ({
+        ...s,
+        candidates: s.candidates.map(candidate =>
+          candidate.id === id && candidate.status === status ? { ...candidate, status: previousStatus } : candidate
+        ),
+      }));
+      throw error;
+    } finally {
+      if (pendingCandidateStatus.current.get(id) === status) pendingCandidateStatus.current.delete(id);
+      window.dispatchEvent(new Event('shift-store-updated'));
+    }
+  };
   const removeCandidate = async (id: string) => sendStoreAction('candidate.remove', { id });
   const addCandidateMessage = async (id: string, message: ChatMessage) => sendStoreAction('candidate.message', { id, message });
   const addExpense = async (expense: Omit<Expense, 'id'>) => sendStoreAction('budget.expense', { expense });
