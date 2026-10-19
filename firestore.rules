@@ -1,8 +1,10 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // The web client must use the protected Vercel API. Only the server-side
+    // Firebase Admin SDK should access Firestore; Admin SDK calls bypass rules.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

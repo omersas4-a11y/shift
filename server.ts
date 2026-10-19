@@ -1,24 +1,23 @@
 import express from "express";
 import path from "path";
-import fs from "fs";
 import { createServer as createViteServer } from "vite";
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, setDoc } from "firebase/firestore";
-
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), "firebase-applet-config.json"), "utf8"));
-
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId || "(default)");
+import storeHandler, { saveWebhookCandidate } from "./api/store";
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
+
+  app.all("/api/store", (req, res) => storeHandler(req, res));
 
   // API route for Google Forms webhook
   app.post("/api/webhook/forms", async (req, res) => {
     try {
+      const webhookSecret = process.env.FORMS_WEBHOOK_SECRET;
+      if (!webhookSecret || req.get("x-shift-webhook-secret") !== webhookSecret) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
       const { formResponseId, answers } = req.body;
       
       console.log("Received form webhook:", req.body);
@@ -60,7 +59,7 @@ async function startServer() {
 
       const docId = formResponseId || Date.now().toString();
       
-      await setDoc(doc(db, "candidates", docId), candidateData);
+      await saveWebhookCandidate(docId, candidateData);
       
       console.log("Candidate added to Firestore:", docId);
       res.status(200).json({ success: true, id: docId });

@@ -37,6 +37,133 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+/* Interactive pixel atmosphere shared by every signed-in screen. */
+.shift-shell {
+  position: relative;
+  isolation: isolate;
+}
+.shift-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .9;
+  background-image:
+    radial-gradient(ellipse at 14% 20%, rgba(25, 190, 210, .12), transparent 31%),
+    radial-gradient(ellipse at 86% 74%, rgba(184, 94, 255, .11), transparent 34%),
+    radial-gradient(ellipse at 48% 100%, rgba(255, 202, 57, .085), transparent 28%),
+    linear-gradient(rgba(255, 90, 0, .065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 90, 0, .065) 1px, transparent 1px);
+  background-size: auto, auto, auto, auto, 24px 24px, 24px 24px;
+  animation: arenaGlow 12s ease-in-out infinite alternate;
+}
+.shift-pixel-field {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.pixel-particle {
+  position: absolute;
+  top: -28px;
+  width: 4px;
+  height: 4px;
+  opacity: .2;
+  background: currentColor;
+  transform: translateY(-30px);
+  animation: pixelRain var(--rain-duration, 27s) linear infinite;
+  animation-delay: var(--rain-delay, 0s);
+}
+.pixel-sprite--heart {
+  left: 6.2%; color: #ff5279; --rain-duration: 27s; --rain-delay: -6s;
+  box-shadow: 4px 0 currentColor, 12px 0 currentColor,
+    0 4px currentColor, 4px 4px currentColor, 8px 4px currentColor, 12px 4px currentColor, 16px 4px currentColor,
+    0 8px currentColor, 4px 8px currentColor, 8px 8px currentColor, 12px 8px currentColor, 16px 8px currentColor,
+    4px 12px currentColor, 8px 12px currentColor, 12px 12px currentColor, 8px 16px currentColor;
+}
+.pixel-sprite--coin {
+  right: 20.4%; color: #ffbf3f; --rain-duration: 32s; --rain-delay: -17s;
+  box-shadow: 4px 0 currentColor, 8px 0 currentColor,
+    0 4px currentColor, 4px 4px currentColor, 8px 4px currentColor, 12px 4px currentColor,
+    0 8px currentColor, 4px 8px #fff0ad, 8px 8px #fff0ad, 12px 8px currentColor,
+    0 12px currentColor, 4px 12px currentColor, 8px 12px currentColor, 12px 12px currentColor,
+    4px 16px currentColor, 8px 16px currentColor;
+}
+.pixel-sprite--star {
+  left: 6.6%; color: #24c9d4; --rain-duration: 30s; --rain-delay: -21s;
+  box-shadow: 8px -8px currentColor, 8px -4px currentColor,
+    0 0 currentColor, 4px 0 currentColor, 8px 0 currentColor, 12px 0 currentColor, 16px 0 currentColor,
+    4px 4px currentColor, 8px 4px currentColor, 12px 4px currentColor,
+    0 8px currentColor, 4px 8px currentColor, 8px 8px currentColor, 12px 8px currentColor, 16px 8px currentColor,
+    4px 12px currentColor, 12px 12px currentColor;
+}
+.pixel-sprite--controller {
+  right: 20.7%; color: #bd7aff; --rain-duration: 34s; --rain-delay: -9s;
+  box-shadow: 4px -4px currentColor, 8px -4px currentColor, 12px -4px currentColor, 16px -4px currentColor,
+    0 0 currentColor, 4px 0 currentColor, 8px 0 currentColor, 12px 0 currentColor, 16px 0 currentColor, 20px 0 currentColor,
+    0 4px currentColor, 4px 4px currentColor, 8px 4px currentColor, 12px 4px currentColor, 16px 4px currentColor, 20px 4px currentColor,
+    4px 8px currentColor, 8px 8px currentColor, 12px 8px currentColor, 16px 8px currentColor;
+}
+.pixel-sprite--controller::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 4px;
+  width: 4px;
+  height: 4px;
+  background: #ffc44b;
+  box-shadow: 4px -4px #ffc44b, 12px 0 #ff6685;
+}
+.pixel-sprite--bolt {
+  left: 6.4%; color: #ff8a45; --rain-duration: 29s; --rain-delay: -14s;
+  box-shadow: 8px 0 currentColor, 12px 0 currentColor,
+    4px 4px currentColor, 8px 4px currentColor,
+    4px 8px currentColor, 8px 8px currentColor,
+    0 12px currentColor, 4px 12px currentColor,
+    0 16px currentColor, 4px 16px currentColor;
+}
+
+@keyframes arenaGlow {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(16deg); }
+}
+@keyframes pixelRain {
+  0% { transform: translateY(-32px); opacity: 0; }
+  7% { opacity: .17; }
+  92% { opacity: .17; }
+  100% { transform: translateY(calc(100vh + 48px)); opacity: 0; }
+}
+.shift-sidebar {
+  position: relative;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.chat-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 90, 0, .055), transparent 34%),
+    var(--theme-surface);
+  border-right: 1px solid var(--theme-border);
+  box-shadow: 4px 0 18px rgba(17, 24, 39, .055);
+}
+.chat-rail__header {
+  background: linear-gradient(145deg, rgba(255, 90, 0, .1), rgba(255, 90, 0, .025) 65%, transparent);
+}
+.chat-rail__icon {
+  box-shadow: 2px 2px 0 rgba(169, 54, 0, .18);
+}
+.chat-rail__open:hover .chat-rail__icon {
+  box-shadow: 2px 3px 0 #a93600, 0 0 20px rgba(255, 90, 0, .18);
+}
+:root.dark .chat-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 90, 0, .09), transparent 34%),
+    var(--theme-surface);
+  box-shadow: 4px 0 18px rgba(0, 0, 0, .2);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -53,10 +180,13 @@ body {
 
 @layer components {
   .gaming-card {
-    @apply bg-surface border border-border relative overflow-hidden transition-all duration-300 rounded-3xl;
+    @apply bg-surface border border-border relative overflow-hidden transition-all duration-300 rounded-2xl;
+    box-shadow: 3px 3px 0 rgba(17, 24, 39, .09);
   }
   .gaming-card:hover {
-    @apply border-brand shadow-[0_0_15px_rgba(255,90,0,0.15)];
+    @apply border-brand shadow-[0_0_18px_rgba(255,90,0,0.18)];
+    transform: translate(-1px, -2px);
+    background-image: radial-gradient(220px circle at 50% 50%, rgba(255, 90, 0, .1), transparent 78%);
   }
   .gaming-card::before {
     content: '';
@@ -65,15 +195,55 @@ body {
   .gaming-card:hover::before {
     @apply opacity-100;
   }
+  .gaming-card::after {
+    content: '';
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: 32px;
+    height: 32px;
+    pointer-events: none;
+    opacity: .3;
+    background:
+      linear-gradient(var(--color-brand), var(--color-brand)) 0 0 / 8px 8px no-repeat,
+      linear-gradient(var(--color-brand), var(--color-brand)) 8px 8px / 8px 8px no-repeat,
+      linear-gradient(var(--color-brand), var(--color-brand)) 16px 16px / 8px 8px no-repeat;
+    transition: opacity .2s ease;
+  }
+  .gaming-card:hover::after { opacity: .85; }
+  .pixel-column {
+    background-image: linear-gradient(135deg, rgba(255, 90, 0, .08), rgba(19, 184, 200, .035) 44%, rgba(184, 94, 255, .04));
+    box-shadow: 3px 3px 0 rgba(17, 24, 39, .07), inset 0 1px rgba(255,255,255,.6);
+    transition: background-position .3s ease, box-shadow .3s ease, transform .3s ease;
+  }
+  .pixel-column:hover {
+    background-position: 20px 20px;
+    box-shadow: 4px 5px 0 rgba(17, 24, 39, .09), 0 0 24px rgba(255, 90, 0, .09);
+  }
 
   /* Button Block Style */
   .gaming-button, .gaming-button-outline {
-    @apply font-bold px-6 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all duration-100;
+    @apply font-bold px-6 py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-100;
     background-color: var(--theme-surface);
     color: var(--theme-text-main);
     border: 2px solid var(--theme-text-main);
     box-shadow: 4px 4px 0px 0px var(--theme-text-main);
   }
+
+  .gaming-button {
+    color: #fff;
+    background-color: var(--color-brand);
+    background-image: linear-gradient(125deg, rgba(255,255,255,.14), transparent 42%, rgba(255, 210, 56, .17));
+    border-color: #a93600;
+    box-shadow: 4px 4px 0 #a93600;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, .2);
+  }
+  .gaming-button:hover {
+    background-color: var(--color-brand-hover);
+    box-shadow: 2px 2px 0 #a93600;
+  }
+  .gaming-button:active { box-shadow: 0 0 0 #a93600; }
 
   .gaming-button:hover, .gaming-button-outline:hover {
     transform: translate(2px, 2px);
@@ -83,6 +253,25 @@ body {
   .gaming-button:active, .gaming-button-outline:active {
     transform: translate(4px, 4px);
     box-shadow: 0px 0px 0px 0px var(--theme-text-main);
+  }
+  .gaming-button:hover {
+    background-color: var(--color-brand-hover);
+    box-shadow: 2px 2px 0 #a93600, 0 0 20px rgba(255, 90, 0, .25);
+  }
+  .gaming-button-outline:hover {
+    box-shadow: 2px 2px 0 var(--color-brand), 0 0 18px rgba(19, 184, 200, .15);
+  }
+  .shift-sidebar nav button:not([aria-current="page"]):hover {
+    transform: translateX(-3px);
+    box-shadow: inset -3px 0 #13b8c8, 0 5px 18px rgba(184, 94, 255, .09);
+  }
+  .shift-main input:not([type="file"]), .shift-main textarea, .shift-main select {
+    accent-color: var(--color-brand);
+  }
+  .shift-main input:focus-visible, .shift-main textarea:focus-visible, .shift-main select:focus-visible,
+  .shift-sidebar button:focus-visible, .gaming-button:focus-visible, .gaming-button-outline:focus-visible {
+    outline: 3px solid rgba(255, 90, 0, .62);
+    outline-offset: 3px;
   }
 
   :root.dark .gaming-button, :root.dark .gaming-button-outline {
@@ -95,6 +284,14 @@ body {
   :root.dark .gaming-button:active, :root.dark .gaming-button-outline:active {
     box-shadow: 0px 0px 0px 0px var(--color-brand);
   }
+  :root.dark .gaming-button {
+    background-color: var(--color-brand);
+    background-image: linear-gradient(125deg, rgba(255,255,255,.16), transparent 42%, rgba(255, 210, 56, .15));
+    border-color: #ffb180;
+    box-shadow: 4px 4px 0 #8a2f00;
+  }
+  :root.dark .gaming-button:hover { box-shadow: 2px 2px 0 #8a2f00; }
+  :root.dark .gaming-button:active { box-shadow: 0 0 0 #8a2f00; }
 
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
@@ -110,4 +307,23 @@ body {
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--color-brand);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  .pixel-particle { display: none; }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .pixel-particle { opacity: .13; }
+  .gaming-card:hover { background-image: none; }
+}
+
+@media (max-width: 720px) {
+  .pixel-particle:nth-child(2n) { display: none; }
 }

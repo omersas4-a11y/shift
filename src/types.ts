@@ -40,6 +40,12 @@ export interface Candidate {
   level: number;
   messages?: ChatMessage[];
   formResponseId?: string;
+  /** Original Google Forms fields, kept intact so the team can review every answer. */
+  formAnswers?: Record<string, string>;
+  /** Legacy field populated by the existing Forms webhook. */
+  rawAnswers?: Record<string, string>;
+  email?: string;
+  phone?: string;
 }
 
 export interface Expense {

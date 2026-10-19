@@ -1,19 +1,9 @@
 import { useStore } from '../../StoreContext';
 
-const USERS = [
-  "אליאור",
-  "עומר",
-  "טל ג'וניור",
-  "יוגב",
-  "טל סניור"
-];
+const USERS = ['אליאור', 'עומר', "טל ג'וניור", 'יוגב', 'טל סניור'];
 
 export default function LoginView() {
   const { setCurrentUser } = useStore();
-
-  const handleLogin = (user: string) => {
-    setCurrentUser(user);
-  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-bg text-text-main font-sans w-full p-8 relative overflow-hidden">
@@ -26,15 +16,11 @@ export default function LoginView() {
         </div>
         
         <h1 className="text-3xl font-black text-text-main mb-2">ברוכים הבאים למערכת SHIFT</h1>
-        <p className="text-text-muted mb-8">אנא בחרו משתמש כדי להתחבר למערכת</p>
+        <p className="text-text-muted mb-8">בחרו שם לתצוגה בצוות</p>
         
         <div className="flex flex-col gap-4">
           {USERS.map(user => (
-            <button
-              key={user}
-              onClick={() => handleLogin(user)}
-              className="gaming-button text-xl py-4"
-            >
+            <button key={user} onClick={() => setCurrentUser(user)} className="gaming-button text-xl py-4">
               {user}
             </button>
           ))}

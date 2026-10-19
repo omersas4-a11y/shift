@@ -22,7 +22,7 @@ const getTabName = (tab: string) => {
   switch (tab) {
     case 'logistics': return 'ארסנל וציוד';
     case 'syllabus': return 'סילבוס ומשימות';
-    case 'candidates': return 'שחקנים חדשים';
+    case 'candidates': return 'מיונים ומועמדים';
     case 'budget': return 'משאבים ותקציב';
     case 'dashboard':
     default: return 'מפקדה';
@@ -69,18 +69,32 @@ export default function ChatPanel({ activeTab, isOpen, onClose, onOpen }: ChatPa
 
   return (
     <aside 
-      className={`relative bg-surface border-r border-border h-full flex flex-col z-20 shadow-[-4px_0_15px_rgba(0,0,0,0.05)] transition-all duration-300 ease-in-out overflow-hidden ${
+      className={`chat-panel relative h-full flex flex-col z-20 transition-all duration-300 ease-in-out overflow-hidden ${
         isOpen 
           ? 'w-80 opacity-100' 
-          : 'w-0 md:w-16 opacity-0 md:opacity-100 cursor-pointer hover:bg-surface-alt'
+          : 'w-0 md:w-[84px] opacity-0 md:opacity-100'
       }`}
-      onClick={!isOpen ? onOpen : undefined}
     >
       {/* Collapsed Icon for Desktop */}
       {!isOpen && (
-        <div className="hidden md:flex absolute inset-x-0 top-0 flex-col items-center pt-6 pointer-events-none text-text-muted">
-          <MessageSquare className="text-brand mb-2 flex-shrink-0" size={24} />
-          <ChevronRight size={20} className="animate-pulse" />
+        <div className="chat-rail fixed bottom-0 left-0 top-0 z-20 hidden h-screen w-[84px] flex-col items-center md:flex">
+          <div className="chat-rail__header flex h-[129px] w-full shrink-0 items-center justify-center border-b border-border">
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label="פתח צ׳אט צוות"
+              title="פתח צ׳אט צוות"
+              className="chat-rail__open group flex w-full flex-col items-center gap-2 py-2 text-text-muted transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-brand"
+            >
+              <span className="chat-rail__icon relative flex h-12 w-12 items-center justify-center rounded-2xl border border-brand/25 bg-brand/10 text-brand transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-brand group-hover:bg-brand group-hover:text-white">
+                <MessageSquare size={21} strokeWidth={2.2} />
+                <span className="chat-rail__chevron absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-brand/40 bg-surface text-text-main shadow-sm transition-all group-hover:translate-x-0.5 group-hover:border-brand group-hover:text-brand">
+                  <ChevronRight size={17} strokeWidth={2.75} />
+                </span>
+              </span>
+              <span className="text-xs font-extrabold tracking-wide">צ׳אט צוות</span>
+            </button>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, Package, Calendar, Wallet, Sun, Moon, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Calendar, Wallet, Sun, Moon, LogOut, ClipboardList } from 'lucide-react';
 import { useStore } from '../StoreContext';
 
 interface SidebarProps {
@@ -14,13 +14,14 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
   
   const navItems = [
     { id: 'dashboard', label: 'מסך בית', icon: LayoutDashboard },
+    { id: 'candidates', label: 'מיונים', icon: ClipboardList },
     { id: 'logistics', label: 'לוגיסטיקה', icon: Package },
     { id: 'syllabus', label: 'סילבוס', icon: Calendar },
     { id: 'budget', label: 'תקציב', icon: Wallet },
   ];
 
   return (
-    <aside className="w-64 bg-surface border-l border-border h-full flex flex-col z-20 shadow-[4px_0_15px_rgba(0,0,0,0.05)]">
+    <aside className="shift-sidebar w-64 bg-surface border-l border-border h-full flex flex-col z-20 shadow-[4px_0_15px_rgba(0,0,0,0.05)]">
       <div className="p-8 flex justify-center border-b border-border">
         {/* SHIFT Logo */}
         <div className="w-32 h-16 flex items-center justify-center">
