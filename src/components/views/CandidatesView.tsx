@@ -73,11 +73,13 @@ function signature(candidate: Pick<Candidate, 'name' | 'major' | 'joinReason' | 
 }
 
 export default function CandidatesView() {
-  const { candidates, currentUser, updateCandidateStatus, addCandidates, addCandidateMessage, removeCandidate } = useStore();
+  const { candidates, currentUser, updateCandidateStatus, addCandidates, addCandidateMessage, removeCandidate, removeAllCandidates } = useStore();
   const fileInput = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -181,6 +183,23 @@ export default function CandidatesView() {
     }
   };
 
+  const confirmRemoveAllCandidates = async () => {
+    if (!candidates.length) return;
+    setDeletingAll(true);
+    try {
+      const deletedCount = await removeAllCandidates();
+      setDeleteAllOpen(false);
+      setSelectedId(null);
+      setNotice(`נמחקו ${deletedCount} מועמדים וכל התשובות והשיחות שלהם.`);
+      setError('');
+    } catch (removeError) {
+      console.error('Bulk candidate removal failed:', removeError);
+      setError('לא ניתן למחוק את כל המועמדים. בדקו את חיבור Firestore.');
+    } finally {
+      setDeletingAll(false);
+    }
+  };
+
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedCandidate || !message.trim()) return;
@@ -207,15 +226,25 @@ export default function CandidatesView() {
           <h2 className="text-3xl font-black text-text-main mb-2">מיונים</h2>
           <p className="text-text-muted">ניהול מועמדים, תשובות מטופסי ההרשמה ושיחות צוות.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => fileInput.current?.click()}
-          disabled={busy}
-          className="gaming-button shrink-0 disabled:cursor-wait disabled:opacity-60"
-        >
-          <Upload size={18} />
-          {busy ? 'מייבא…' : 'ייבוא CSV מ־Google Forms'}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={busy || deletingAll}
+            className="gaming-button shrink-0 disabled:cursor-wait disabled:opacity-60"
+          >
+            <Upload size={18} />
+            {busy ? 'מייבא…' : 'ייבוא CSV מ־Google Forms'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDeleteAllOpen(true)}
+            disabled={!candidates.length || busy || deletingAll}
+            className="flex shrink-0 items-center gap-2 rounded-xl border-2 border-red-700 bg-red-600 px-4 py-2 font-bold text-white shadow-[3px_3px_0_#7f1d1d] transition hover:translate-y-0.5 hover:shadow-[1px_1px_0_#7f1d1d] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Trash2 size={18} />מחיקת כל המועמדים
+          </button>
+        </div>
         <input
           ref={fileInput}
           type="file"
@@ -407,6 +436,22 @@ export default function CandidatesView() {
               <button type="button" onClick={() => setDeleteTargetId(null)} disabled={deleting} className="rounded-xl border border-border px-4 py-2 font-bold text-text-main transition hover:bg-surface-alt disabled:opacity-50">ביטול</button>
               <button type="button" onClick={() => void confirmRemoveCandidate()} disabled={deleting} className="flex items-center gap-2 rounded-xl border-2 border-red-700 bg-red-600 px-4 py-2 font-bold text-white shadow-[3px_3px_0_#7f1d1d] transition hover:translate-y-0.5 hover:shadow-[1px_1px_0_#7f1d1d] disabled:cursor-wait disabled:opacity-60">
                 <Trash2 size={16} />{deleting ? 'מסיר…' : 'הסרת מועמד'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {deleteAllOpen && (
+        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !deletingAll) setDeleteAllOpen(false); }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="remove-all-candidates-title" className="w-full max-w-md rounded-2xl border border-red-500/40 bg-surface p-6 shadow-2xl">
+            <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-red-500/10 text-red-600"><Trash2 size={22} /></div>
+            <h2 id="remove-all-candidates-title" className="text-xl font-black text-text-main">למחוק את כל המועמדים?</h2>
+            <p className="mt-2 text-sm leading-6 text-text-muted">פעולה זו תמחק לצמיתות {candidates.length} מועמדים מכל הקטגוריות, כולל תשובות הטופס ושיחות הצוות שלהם. אי אפשר לשחזר את המידע.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setDeleteAllOpen(false)} disabled={deletingAll} className="rounded-xl border border-border px-4 py-2 font-bold text-text-main transition hover:bg-surface-alt disabled:opacity-50">ביטול</button>
+              <button type="button" onClick={() => void confirmRemoveAllCandidates()} disabled={deletingAll} className="flex items-center gap-2 rounded-xl border-2 border-red-700 bg-red-600 px-4 py-2 font-bold text-white shadow-[3px_3px_0_#7f1d1d] transition hover:translate-y-0.5 hover:shadow-[1px_1px_0_#7f1d1d] disabled:cursor-wait disabled:opacity-60">
+                <Trash2 size={16} />{deletingAll ? 'מוחק…' : 'מחיקת כל המועמדים'}
               </button>
             </div>
           </section>
