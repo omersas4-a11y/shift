@@ -37,7 +37,7 @@ async function readStore(db: ReturnType<typeof getDatabase>) {
   };
 }
 
-async function writeStore(db: ReturnType<typeof getDatabase>, action: string, payload: any) {
+async function writeStore(db: ReturnType<typeof getDatabase>, action: string, payload: any): Promise<number | void> {
   const collection = (name: string) => db.collection(name);
   const id = (value: unknown) => String(value ?? '');
   switch (action) {
@@ -93,6 +93,15 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
     case 'candidate.remove':
       await collection('candidates').doc(id(payload.id)).delete();
       break;
+    case 'candidate.removeAll': {
+      const candidates = await collection('candidates').get();
+      for (let start = 0; start < candidates.docs.length; start += 450) {
+        const batch = db.batch();
+        candidates.docs.slice(start, start + 450).forEach(candidate => batch.delete(candidate.ref));
+        await batch.commit();
+      }
+      return candidates.docs.length;
+    }
     case 'candidate.message':
       await collection('candidates').doc(id(payload.id)).update({ messages: FieldValue.arrayUnion(payload.message) });
       break;
@@ -128,8 +137,8 @@ export default async function handler(req: any, res: any) {
   try {
     const db = getDatabase();
     if (req.method === 'GET') return res.status(200).json(await readStore(db));
-    await writeStore(db, String(req.body?.action || ''), req.body?.payload || {});
-    return res.status(200).json({ ok: true });
+    const deleted = await writeStore(db, String(req.body?.action || ''), req.body?.payload || {});
+    return res.status(200).json({ ok: true, ...(deleted === undefined ? {} : { deleted }) });
   } catch (error) {
     console.error('Store API error:', error);
     return res.status(500).json({ error: 'לא ניתן לעדכן את הנתונים כרגע.' });
