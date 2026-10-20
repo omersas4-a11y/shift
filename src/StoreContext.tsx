@@ -24,6 +24,7 @@ interface StoreContextType extends StoreState {
   addCandidates: (candidates: Omit<Candidate, 'id' | 'status' | 'messages'>[]) => Promise<void>;
   updateCandidateStatus: (id: string, status: Candidate['status']) => Promise<void>;
   removeCandidate: (id: string) => Promise<void>;
+  removeAllCandidates: () => Promise<number>;
   addCandidateMessage: (candidateId: string, message: ChatMessage) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   setTotalBudget: (total: number) => void;
@@ -46,7 +47,9 @@ async function sendStoreAction(action: string, payload: unknown = {}) {
     const data = await response.json().catch(() => ({}));
     throw new Error(data.error || 'שמירת הנתונים נכשלה.');
   }
+  const data = await response.json().catch(() => ({}));
   window.dispatchEvent(new Event('shift-store-updated'));
+  return data as { deleted?: number };
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -109,7 +112,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addMeeting = async (meeting: Omit<Meeting, 'id'>) => sendStoreAction('meeting.add', meeting);
   const removeMeeting = async (id: string) => sendStoreAction('meeting.remove', { id });
   const updateMeeting = async (id: string, meeting: Omit<Meeting, 'id'>) => sendStoreAction('meeting.update', { id, meeting });
-  const addCandidate = async (candidate: Omit<Candidate, 'id' | 'status' | 'messages'>) => sendStoreAction('candidate.add', { candidate });
+  const addCandidate = async (candidate: Omit<Candidate, 'id' | 'status' | 'messages'>) => { await sendStoreAction('candidate.add', { candidate }); };
   const addCandidates = async (candidates: Omit<Candidate, 'id' | 'status' | 'messages'>[]) => {
     for (let start = 0; start < candidates.length; start += 50) {
       await sendStoreAction('candidate.addMany', { candidates: candidates.slice(start, start + 50) });
@@ -139,8 +142,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new Event('shift-store-updated'));
     }
   };
-  const removeCandidate = async (id: string) => sendStoreAction('candidate.remove', { id });
-  const addCandidateMessage = async (id: string, message: ChatMessage) => sendStoreAction('candidate.message', { id, message });
+  const removeCandidate = async (id: string) => { await sendStoreAction('candidate.remove', { id }); };
+  const removeAllCandidates = async () => {
+    const result = await sendStoreAction('candidate.removeAll');
+    return result.deleted ?? 0;
+  };
+  const addCandidateMessage = async (id: string, message: ChatMessage) => { await sendStoreAction('candidate.message', { id, message }); };
   const addExpense = async (expense: Omit<Expense, 'id'>) => sendStoreAction('budget.expense', { expense });
   const setTotalBudget = async (totalAnnual: number) => sendStoreAction('budget.total', { totalAnnual });
   const addChannelMessage = async (message: Omit<ChatMessage, 'id'>) => sendStoreAction('chat.add', { message });
@@ -149,7 +156,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     <StoreContext.Provider value={{
       ...state, setCurrentUser, addEquipment, updateEquipmentStatus, addRequirement, toggleRequirement,
       addMeeting, removeMeeting, updateMeeting, addCandidate, addCandidates, updateCandidateStatus,
-      removeCandidate, addCandidateMessage, addExpense, setTotalBudget, addChannelMessage,
+      removeCandidate, removeAllCandidates, addCandidateMessage, addExpense, setTotalBudget, addChannelMessage,
     }}>
       {children}
     </StoreContext.Provider>
