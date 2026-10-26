@@ -3,7 +3,74 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const FIRESTORE_DATABASE_ID = 'ai-studio-shift-8a9dab80-6b8a-460c-a6cd-1b84bdbec9e2';
 
-function getDatabase() {
+const isPreview = () => process.env.VERCEL_ENV === 'preview';
+const syncVersionDocument = (db: ReturnType<typeof getDatabase>) => db.collection('settings').doc(isPreview() ? 'store-sync-preview' : 'store-sync-production');
+const getSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
+  const snapshot = await syncVersionDocument(db).get();
+  return Number(snapshot.get('version') ?? 0);
+};
+const bumpSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
+  try {
+    await syncVersionDocument(db).set({ version: FieldValue.increment(1) }, { merge: true });
+  } catch (error) {
+    // The main write has already succeeded. A failed sync marker must not invite a retry that duplicates it.
+    console.error('Store sync version update failed:', error);
+  }
+};
+const meetingEquipmentCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewMeetingEquipment' : 'meetingEquipment');
+const meetingsCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewMeetings' : 'meetings');
+const activityCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewActivityEvents' : 'activityEvents');
+const logisticsSettingsDocument = (db: ReturnType<typeof getDatabase>) => db.collection('settings').doc(isPreview() ? 'logistics-preview' : 'logistics');
+const previewCollections: Record<string, string> = {
+  equipment: 'previewEquipment',
+  requirements: 'previewRequirements',
+  candidates: 'previewCandidates',
+  chatMessages: 'previewChatMessages',
+};
+const collectionFor = (db: ReturnType<typeof getDatabase>, name: string) => db.collection(isPreview() ? previewCollections[name] || name : name);
+
+async function ensurePreviewBaseData(db: ReturnType<typeof getDatabase>) {
+  if (!isPreview()) return;
+  const marker = db.collection('settings').doc('preview-base-data-initialized');
+  await db.runTransaction(async transaction => {
+    const initialized = await transaction.get(marker);
+    if (initialized.exists) return;
+    const sources = await Promise.all(Object.keys(previewCollections).map(name => transaction.get(db.collection(name))));
+    Object.keys(previewCollections).forEach((name, index) => {
+      for (const document of sources[index].docs) transaction.set(collectionFor(db, name).doc(document.id), document.data());
+    });
+    transaction.set(marker, { initializedAt: FieldValue.serverTimestamp() });
+  });
+}
+
+export const budgetDocument = (db: ReturnType<typeof getDatabase>) => db.collection('budget').doc(isPreview() ? 'preview-main' : 'main');
+
+async function ensurePreviewBudget(db: ReturnType<typeof getDatabase>) {
+  if (!isPreview()) return;
+  const preview = budgetDocument(db);
+  await db.runTransaction(async transaction => {
+    const existing = await transaction.get(preview);
+    if (existing.exists) return;
+    const original = await transaction.get(db.collection('budget').doc('main'));
+    transaction.set(preview, original.exists ? original.data()! : { totalAnnual: 5000, expenses: [] });
+  });
+}
+
+async function ensurePreviewMeetings(db: ReturnType<typeof getDatabase>) {
+  if (!isPreview()) return;
+  const marker = db.collection('settings').doc('preview-meetings-initialized');
+  await db.runTransaction(async transaction => {
+    const initialized = await transaction.get(marker);
+    if (initialized.exists) return;
+    const originalMeetings = await transaction.get(db.collection('meetings'));
+    for (const meeting of originalMeetings.docs) {
+      transaction.set(meetingsCollection(db).doc(meeting.id), meeting.data());
+    }
+    transaction.set(marker, { initializedAt: FieldValue.serverTimestamp() });
+  });
+}
+
+export function getDatabase() {
   const existing = getApps()[0];
   if (existing) return getFirestore(existing, FIRESTORE_DATABASE_ID);
 
@@ -15,31 +82,80 @@ function getDatabase() {
 }
 
 export async function saveWebhookCandidate(id: string, data: Record<string, unknown>) {
-  await getDatabase().collection('candidates').doc(id).set(data);
+  const db = getDatabase();
+  await db.collection('candidates').doc(id).set(data);
+  await bumpSyncVersion(db);
 }
 
 async function readStore(db: ReturnType<typeof getDatabase>) {
-  const [equipment, requirements, meetings, candidates, chatMessages, budget] = await Promise.all([
-    db.collection('equipment').get(),
-    db.collection('requirements').get(),
-    db.collection('meetings').get(),
-    db.collection('candidates').get(),
-    db.collection('chatMessages').get(),
-    db.collection('budget').doc('main').get(),
+  await Promise.all([ensurePreviewMeetings(db), ensurePreviewBudget(db), ensurePreviewBaseData(db)]);
+  // Read the marker first so a write during the collection queries is seen by the next poll.
+  const syncVersion = await getSyncVersion(db);
+  const [equipment, meetingEquipment, requirements, meetings, candidates, chatMessages, budget, logisticsSettings, activityEvents] = await Promise.all([
+    collectionFor(db, 'equipment').get(),
+    meetingEquipmentCollection(db).get(),
+    collectionFor(db, 'requirements').get(),
+    meetingsCollection(db).get(),
+    collectionFor(db, 'candidates').get(),
+    collectionFor(db, 'chatMessages').get(),
+    budgetDocument(db).get(),
+    logisticsSettingsDocument(db).get(),
+    activityCollection(db).orderBy('createdAt', 'desc').limit(40).get(),
   ]);
   return {
     equipment: equipment.docs.map(item => ({ id: item.id, ...item.data() })),
+    meetingEquipment: meetingEquipment.docs.map(item => ({ id: item.id, ...item.data() })),
+    logisticsEmailRecipients: logisticsSettings.exists ? logisticsSettings.get('emailRecipients') ?? [] : [],
     requirements: requirements.docs.map(item => ({ id: item.id, ...item.data() })),
     meetings: meetings.docs.map(item => ({ id: item.id, ...item.data() })),
+    activityEvents: activityEvents.docs.map(item => ({ id: item.id, ...item.data() })),
     candidates: candidates.docs.map(item => ({ id: item.id, ...item.data() })),
     chatMessages: chatMessages.docs.map(item => ({ id: item.id, ...item.data() })),
     budget: budget.exists ? budget.data() : { totalAnnual: 5000, expenses: [] },
+    syncVersion,
   };
 }
 
-async function writeStore(db: ReturnType<typeof getDatabase>, action: string, payload: any): Promise<number | void> {
-  const collection = (name: string) => db.collection(name);
+async function readActivityPage(db: ReturnType<typeof getDatabase>, before: string) {
+  const query = activityCollection(db).orderBy('createdAt', 'desc').startAfter(before).limit(40);
+  const snapshot = await query.get();
+  return { activityEvents: snapshot.docs.map(item => ({ id: item.id, ...item.data() })), hasMore: snapshot.size === 40 };
+}
+
+function activityFor(action: string, payload: any, deletedCount = 0) {
+  switch (action) {
+    case 'meeting.add': return { category: 'syllabus', text: `נוסף מפגש: ${payload.title || 'מפגש חדש'}` };
+    case 'meeting.update': return { category: 'syllabus', text: payload.meeting?.status && Object.keys(payload.meeting).length === 1 ? 'סטטוס מפגש עודכן' : `פרטי מפגש עודכנו${payload.meeting?.title ? `: ${payload.meeting.title}` : ''}` };
+    case 'meeting.remove': return { category: 'syllabus', text: 'מפגש הוסר מהסילבוס' };
+    case 'candidate.add': return { category: 'candidates', text: `נוסף מועמד: ${payload.candidate?.name || 'מועמד חדש'}` };
+    case 'candidate.addMany': return { category: 'candidates', text: `יובאו ${payload.candidates?.length || 0} מועמדים` };
+    case 'candidate.status': return { category: 'candidates', text: `סטטוס מועמד שונה ל${({ pending: 'חדשים', accepted: 'עובר', rejected: 'לא עובר', maybe: 'מתנדנד' } as Record<string, string>)[payload.status] || 'סטטוס חדש'}` };
+    case 'candidate.remove': return { category: 'candidates', text: 'מועמד הוסר מהמיונים' };
+    case 'candidate.removeAll': return { category: 'candidates', text: `נמחקו ${deletedCount} מועמדים מהמיונים` };
+    case 'candidate.message': return { category: 'candidates', text: 'נוספה הודעה לשיחת מועמד' };
+    case 'meetingEquipment.add': return { category: 'logistics', text: `נוסף ציוד: ${payload.item?.name || 'פריט חדש'}` };
+    case 'meetingEquipment.update': return { category: 'logistics', text: `ציוד עודכן: ${payload.item?.name || 'פריט'}` };
+    case 'meetingEquipment.remove': return { category: 'logistics', text: 'ציוד הוסר ממפגש' };
+    case 'logistics.emailRecipients': return { category: 'logistics', text: 'עודכנו נמעני הדוא״ל בלוגיסטיקה' };
+    case 'equipment.add': return { category: 'logistics', text: `נוסף ציוד: ${payload.name || 'פריט חדש'}` };
+    case 'equipment.status': return { category: 'logistics', text: 'סטטוס ציוד עודכן' };
+    case 'requirement.add': return { category: 'logistics', text: 'נוספה דרישת ציוד למפגש' };
+    case 'requirement.toggle': return { category: 'logistics', text: 'סימון דרישת ציוד עודכן' };
+    case 'budget.expense': return { category: 'budget', text: `נוספה הוצאה: ${payload.expense?.title || 'הוצאה חדשה'}` };
+    case 'budget.expense.update': return { category: 'budget', text: `עודכנה הוצאה: ${payload.expense?.title || 'הוצאה'}` };
+    case 'budget.expense.remove': return { category: 'budget', text: 'הוצאה הוסרה מהתקציב' };
+    case 'budget.total': return { category: 'budget', text: 'התקציב השנתי עודכן' };
+    default: return null;
+  }
+}
+
+async function writeStore(db: ReturnType<typeof getDatabase>, action: string, payload: any, actor: string): Promise<number | void> {
+  const collection = (name: string) => collectionFor(db, name);
   const id = (value: unknown) => String(value ?? '');
+  if (action.startsWith('meeting.')) await ensurePreviewMeetings(db);
+  if (action.startsWith('budget.')) await ensurePreviewBudget(db);
+  if (/^(equipment\.|requirement\.|candidate\.|chat\.)/.test(action)) await ensurePreviewBaseData(db);
+  let deletedCount = 0;
   switch (action) {
     case 'equipment.add': {
       const ref = collection('equipment').doc();
@@ -49,6 +165,24 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
     case 'equipment.status':
       await collection('equipment').doc(id(payload.id)).update({ status: payload.status });
       break;
+    case 'meetingEquipment.add': {
+      const ref = meetingEquipmentCollection(db).doc();
+      await ref.set({ ...payload.item, id: ref.id });
+      break;
+    }
+    case 'meetingEquipment.update':
+      await meetingEquipmentCollection(db).doc(id(payload.id)).update(payload.item);
+      break;
+    case 'meetingEquipment.remove':
+      await meetingEquipmentCollection(db).doc(id(payload.id)).delete();
+      break;
+    case 'logistics.emailRecipients': {
+      const recipients = Array.isArray(payload.recipients)
+        ? payload.recipients.filter((value: unknown): value is string => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())).map((value: string) => value.trim()).slice(0, 30)
+        : [];
+      await logisticsSettingsDocument(db).set({ emailRecipients: recipients }, { merge: true });
+      break;
+    }
     case 'requirement.add': {
       const ref = collection('requirements').doc();
       await ref.set({ ...payload, id: ref.id, isBrought: false });
@@ -63,15 +197,15 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
       break;
     }
     case 'meeting.add': {
-      const ref = collection('meetings').doc();
+      const ref = meetingsCollection(db).doc();
       await ref.set({ ...payload, id: ref.id });
       break;
     }
     case 'meeting.update':
-      await collection('meetings').doc(id(payload.id)).update(payload.meeting);
+      await meetingsCollection(db).doc(id(payload.id)).update(payload.meeting);
       break;
     case 'meeting.remove':
-      await collection('meetings').doc(id(payload.id)).delete();
+      await meetingsCollection(db).doc(id(payload.id)).delete();
       break;
     case 'candidate.add':
     case 'candidate.addMany': {
@@ -100,19 +234,34 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
         candidates.docs.slice(start, start + 450).forEach(candidate => batch.delete(candidate.ref));
         await batch.commit();
       }
-      return candidates.docs.length;
+      deletedCount = candidates.docs.length;
+      break;
     }
     case 'candidate.message':
       await collection('candidates').doc(id(payload.id)).update({ messages: FieldValue.arrayUnion(payload.message) });
       break;
     case 'budget.expense':
+    case 'budget.expense.update':
+    case 'budget.expense.remove':
     case 'budget.total': {
-      const ref = collection('budget').doc('main');
+      const ref = budgetDocument(db);
       await db.runTransaction(async tx => {
         const snapshot = await tx.get(ref);
         const current = snapshot.exists ? snapshot.data()! : { totalAnnual: 5000, expenses: [] };
+        const expenses = Array.isArray(current.expenses) ? current.expenses : [];
         if (action === 'budget.expense') {
-          tx.set(ref, { ...current, expenses: [...(current.expenses || []), { ...payload.expense, id: Date.now().toString() }] });
+          tx.set(ref, { ...current, expenses: [...expenses, { ...payload.expense, id: Date.now().toString() }] });
+        } else if (action === 'budget.expense.update' || action === 'budget.expense.remove') {
+          const expenseId = id(payload.id);
+          const index = expenses.findIndex((expense: any) => id(expense.id) === expenseId);
+          if (!expenseId || index < 0) throw new Error('Expense not found');
+          const nextExpenses = expenses.slice();
+          if (action === 'budget.expense.update') {
+            nextExpenses[index] = { ...payload.expense, id: expenseId };
+          } else {
+            nextExpenses.splice(index, 1);
+          }
+          tx.set(ref, { ...current, expenses: nextExpenses });
         } else {
           tx.set(ref, { ...current, totalAnnual: payload.totalAnnual });
         }
@@ -127,20 +276,42 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
     default:
       throw new Error('Unknown store action');
   }
+  const event = activityFor(action, payload, deletedCount);
+  if (event) {
+    try {
+      await activityCollection(db).add({ ...event, actor: actor.trim().slice(0, 80) || 'חבר צוות', createdAt: new Date().toISOString() });
+    } catch (error) {
+      console.error('Activity log write failed:', error);
+    }
+  }
+  await bumpSyncVersion(db);
+  if (action === 'candidate.removeAll') return deletedCount;
 }
 
-export default async function handler(req: any, res: any) {
+export async function handleStoreRequest(req: any, res: any, getDb: typeof getDatabase = getDatabase) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const db = getDatabase();
-    if (req.method === 'GET') return res.status(200).json(await readStore(db));
-    const deleted = await writeStore(db, String(req.body?.action || ''), req.body?.payload || {});
+    const db = getDb();
+    if (req.method === 'GET') {
+      if (req.query?.syncVersion === '1') {
+        const syncVersion = await getSyncVersion(db);
+        res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=15');
+        return res.status(200).json({ syncVersion });
+      }
+      if (typeof req.query?.activityBefore === 'string') return res.status(200).json(await readActivityPage(db, req.query.activityBefore));
+      return res.status(200).json(await readStore(db));
+    }
+    const deleted = await writeStore(db, String(req.body?.action || ''), req.body?.payload || {}, String(req.body?.actor || 'חבר צוות'));
     return res.status(200).json({ ok: true, ...(deleted === undefined ? {} : { deleted }) });
   } catch (error) {
     console.error('Store API error:', error);
     return res.status(500).json({ error: 'לא ניתן לעדכן את הנתונים כרגע.' });
   }
+}
+
+export default function handler(req: any, res: any) {
+  return handleStoreRequest(req, res);
 }

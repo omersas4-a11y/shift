@@ -37,6 +37,21 @@ body {
   transition: background-color 0.3s, color 0.3s;
 }
 
+.feedback-page {
+  background-color: #DCDDDD;
+  background-image: linear-gradient(rgba(38,27,19,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(38,27,19,.045) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.feedback-input::placeholder { color: #746C66; }
+
+.status-slider-thumb {
+  transition: transform .36s cubic-bezier(.2,.8,.2,1), background-color .36s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-slider-thumb { transition-duration: .01ms; }
+}
+
 /* Interactive pixel atmosphere shared by every signed-in screen. */
 .shift-shell {
   position: relative;
@@ -147,6 +162,26 @@ body {
     var(--theme-surface);
   border-right: 1px solid var(--theme-border);
   box-shadow: 4px 0 18px rgba(17, 24, 39, .055);
+}
+.chat-header {
+  background: linear-gradient(135deg, rgba(255, 90, 0, .13), rgba(255, 90, 0, .025) 70%), var(--theme-surface);
+}
+.chat-messages {
+  background-color: var(--theme-bg);
+  background-image: radial-gradient(rgba(255, 90, 0, .09) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.chat-bubble--mine {
+  background: linear-gradient(140deg, #ff6818, #ed5100);
+  color: white;
+}
+.chat-bubble--theirs {
+  background: var(--theme-surface);
+  color: var(--theme-text-main);
+  border: 1px solid var(--theme-border);
+}
+.chat-footer {
+  background: var(--theme-surface);
 }
 .chat-rail__header {
   background: linear-gradient(145deg, rgba(255, 90, 0, .1), rgba(255, 90, 0, .025) 65%, transparent);

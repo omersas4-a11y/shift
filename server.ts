@@ -2,6 +2,9 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import storeHandler, { saveWebhookCandidate } from "./api/store";
+import receiptHandler from "./api/receipt";
+import feedbackHandler from "./api/feedback";
+import feedbackAdminHandler from "./api/feedback-admin";
 
 async function startServer() {
   const app = express();
@@ -10,6 +13,9 @@ async function startServer() {
   app.use(express.json({ limit: "1mb" }));
 
   app.all("/api/store", (req, res) => storeHandler(req, res));
+  app.all("/api/receipt", (req, res) => receiptHandler(req, res));
+  app.all("/api/feedback", (req, res) => feedbackHandler(req, res));
+  app.all("/api/feedback-admin", (req, res) => feedbackAdminHandler(req, res));
 
   // API route for Google Forms webhook
   app.post("/api/webhook/forms", async (req, res) => {

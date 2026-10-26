@@ -1,135 +1,91 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useStore } from '../../StoreContext';
 
-export default function DashboardView() {
+export default function DashboardView({ onOpenSyllabus }: { onOpenSyllabus: () => void }) {
   const { candidates, requirements, budget, meetings } = useStore();
-
-  const pendingCandidates = candidates.filter(c => c.status === 'pending').length;
-  const missingEquipment = requirements.filter(r => !r.isBrought).length;
-  
-  // Calculate budget breakdown
+  const pendingCandidates = candidates.filter(candidate => candidate.status === 'pending').length;
+  const missingEquipment = requirements.filter(requirement => !requirement.isBrought).length;
   const totalBudget = budget.totalAnnual;
-  const spent = budget.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const spent = budget.expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const remaining = totalBudget - spent;
-  
-  // Group expenses by category
-  const expensesByCategory = budget.expenses.reduce((acc, exp) => {
-    if (!acc[exp.category]) acc[exp.category] = 0;
-    acc[exp.category] += exp.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  const availablePercentage = totalBudget > 0 ? Math.round((remaining / totalBudget) * 100) : 0;
 
+  const expensesByCategory = budget.expenses.reduce((categories, expense) => {
+    categories[expense.category] = (categories[expense.category] || 0) + expense.amount;
+    return categories;
+  }, {} as Record<string, number>);
+  const colors = ['#FF5A00', '#F59E0B', '#39AFC2', '#8B5CF6', '#EC4899'];
   const chartData = [
-    { name: 'תקציב נותר', value: remaining, color: '#10B981' }, // Green for remaining
-    ...Object.entries(expensesByCategory).map(([name, value], index) => {
-      const colors = ['#EF4444', '#F59E0B', '#3B82F6', '#8B5CF6', '#EC4899'];
-      return {
-        name,
-        value,
-        color: colors[index % colors.length]
-      };
-    })
+    ...(remaining > 0 ? [{ name: 'תקציב נותר', value: remaining, color: '#10B981' }] : []),
+    ...Object.entries(expensesByCategory)
+      .filter(([, value]) => value > 0)
+      .map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }))
+  ];
+  const visibleChartData = chartData.length ? chartData : [{ name: 'אין נתונים', value: 1, color: 'var(--theme-border)' }];
+
+  const stats = [
+    { label: 'מועמדים ממתינים', value: pendingCandidates },
+    { label: 'מפגשים בסילבוס', value: meetings.length },
+    { label: 'תקציב פנוי', value: `${availablePercentage}%` },
+    { label: 'פריטי ציוד חסרים', value: missingEquipment }
   ];
 
   return (
-    <div className="flex flex-col items-center justify-start min-h-full text-center space-y-8 animate-in fade-in zoom-in duration-500 w-full max-w-5xl mx-auto pb-12">
-      <div className="mt-8">
-        <div className="w-64 h-auto mx-auto mb-6 flex items-center justify-center">
-          <img src="/logos/shift logo.png" alt="Shift Logo" className="w-full h-auto object-contain" />
-        </div>
-        <h2 className="text-4xl font-black text-text-main mb-2">מסך בית</h2>
-      </div>
-      
-      {/* Quick stats for dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-         <div className="gaming-card p-6 text-center">
-           <div className="text-4xl font-black text-brand mb-2">{pendingCandidates}</div>
-           <div className="text-sm font-bold text-text-muted uppercase">מועמדים ממתינים</div>
-         </div>
-         <div className="gaming-card p-6 text-center">
-           <div className="text-4xl font-black text-brand mb-2">{meetings.length}</div>
-           <div className="text-sm font-bold text-text-muted uppercase">מפגשים שנשארו לסמסטר</div>
-         </div>
-         <div className="gaming-card p-6 text-center">
-           <div className="text-4xl font-black text-brand mb-2">{Math.round((remaining / totalBudget) * 100)}%</div>
-           <div className="text-sm font-bold text-text-muted uppercase">תקציב פנוי</div>
-         </div>
-         <div className="gaming-card p-6 text-center">
-           <div className="text-4xl font-black text-brand mb-2">{missingEquipment}</div>
-           <div className="text-sm font-bold text-text-muted uppercase">חסר ציוד למפגש</div>
-         </div>
+    <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col items-center space-y-5 pb-10 text-center animate-in fade-in duration-500 sm:space-y-8 sm:pb-12">
+      <div className="mt-1 flex flex-col items-center sm:mt-8">
+        <img src="/logos/shift logo.png" alt="Shift Logo" className="mb-3 h-auto w-28 object-contain sm:mb-6 sm:w-64" />
+        <h2 className="text-2xl font-black text-text-main sm:text-4xl">מסך בית</h2>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 w-full mt-8">
-        {/* Budget Chart */}
-        <div className="gaming-card p-6 flex flex-col">
-          <h3 className="text-xl font-bold text-text-main mb-4 text-right">מצב תקציב (בשקלים)</h3>
-          <div className="h-64 w-full">
+      <div className="grid w-full grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+        {stats.map(stat => (
+          <div key={stat.label} className="gaming-card flex min-h-24 flex-col items-center justify-center gap-1 p-3 sm:min-h-32 sm:gap-2 sm:p-6">
+            <div className="text-2xl font-black leading-none text-brand sm:text-4xl">{stat.value}</div>
+            <div className="text-xs font-bold leading-snug text-text-muted sm:text-sm">{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid w-full grid-cols-1 gap-3 sm:gap-6 xl:grid-cols-2">
+        <section className="gaming-card flex min-w-0 flex-col p-4 text-right sm:p-6">
+          <h3 className="mb-2 text-lg font-bold text-text-main sm:mb-4 sm:text-xl">מצב תקציב (בשקלים)</h3>
+          <div className="relative mx-auto h-44 w-44 sm:h-56 sm:w-56">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={75}
-                  outerRadius={110}
-                  paddingAngle={2}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                <Pie data={visibleChartData} cx="50%" cy="50%" innerRadius="59%" outerRadius="83%" paddingAngle={chartData.length > 1 ? 2 : 0} dataKey="value" stroke="none" isAnimationActive={false}>
+                  {visibleChartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                 </Pie>
-                <Tooltip 
-                  formatter={(value: number) => `₪${value.toLocaleString()}`}
-                  contentStyle={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border)', borderRadius: '8px', color: 'var(--theme-text-main)' }}
-                  itemStyle={{ color: 'var(--theme-text-main)' }}
-                />
-                <Legend 
-                  layout="vertical" 
-                  verticalAlign="middle" 
-                  align="left"
-                  content={(props: any) => {
-                    const { payload } = props;
-                    return (
-                      <ul className="flex flex-col gap-3 m-0 p-0 pr-2">
-                        {payload?.map((entry: any, index: number) => (
-                          <li key={`item-${index}`} className="flex items-center gap-3 text-sm text-right">
-                            <span className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: entry.color }}></span>
-                            <span className="text-text-main font-bold whitespace-nowrap">{entry.value}</span>
-                            <span className="text-text-muted mr-auto font-sans font-semibold text-left" dir="ltr">₪{entry.payload.value.toLocaleString()}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    );
-                  }}
-                />
+                {chartData.length > 0 && <Tooltip formatter={(value: number) => `₪${value.toLocaleString()}`} contentStyle={{ backgroundColor: 'var(--theme-surface)', borderColor: 'var(--theme-border)', borderRadius: '12px', color: 'var(--theme-text-main)' }} itemStyle={{ color: 'var(--theme-text-main)' }} />}
               </PieChart>
             </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[11px] font-bold text-text-muted">יתרה זמינה</span>
+              <strong dir="ltr" className="text-lg font-black text-text-main sm:text-2xl">₪{remaining.toLocaleString()}</strong>
+            </div>
           </div>
-          <div className="text-center mt-2 text-text-muted font-bold text-sm">
-            סה"כ תקציב: ₪{totalBudget.toLocaleString()}
+          <div className="mt-3 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            {chartData.map(entry => (
+              <div key={entry.name} className="flex min-w-0 items-center gap-2 rounded-xl bg-surface-alt px-3 py-2 text-xs sm:text-sm">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: entry.color }} />
+                <span className="min-w-0 flex-1 truncate font-bold text-text-main">{entry.name}</span>
+                <span dir="ltr" className="shrink-0 font-semibold text-text-muted">₪{entry.value.toLocaleString()}</span>
+              </div>
+            ))}
           </div>
-        </div>
+          <p className="mt-3 text-center text-xs font-bold text-text-muted sm:text-sm">סה״כ תקציב: ₪{totalBudget.toLocaleString()}</p>
+        </section>
 
-        {/* Recent Actions or Info (Placeholder for balance) */}
-        <div className="gaming-card p-6 text-right flex flex-col">
-          <h3 className="text-xl font-bold text-text-main mb-4">המפגש הקרוב</h3>
+        <section className="gaming-card flex min-w-0 flex-col p-4 text-right sm:p-6">
+          <h3 className="mb-3 text-lg font-bold text-text-main sm:mb-4 sm:text-xl">המפגש הקרוב</h3>
           {meetings.length > 0 ? (
-            <div className="bg-surface-alt p-4 rounded-3xl border border-border flex-1 flex flex-col justify-center items-center text-center">
-              <div className="text-brand font-black text-2xl mb-2">{meetings[0].title}</div>
-              <div className="text-text-main font-bold mb-1">{meetings[0].date.split('-').reverse().join('/')} ב-{meetings[0].time}</div>
-              <div className="text-text-muted">{meetings[0].location}</div>
-              <button className="gaming-button mt-6 w-full max-w-xs mx-auto">צפה בפרטים</button>
+            <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-border bg-surface-alt p-4 text-center sm:rounded-3xl">
+              <div className="mb-2 text-xl font-black text-brand sm:text-2xl">{meetings[0].title}</div>
+              <div className="mb-1 font-bold text-text-main">{meetings[0].date.split('-').reverse().join('/')} ב-{meetings[0].time}</div>
+              <div className="text-sm text-text-muted">{meetings[0].location}</div>
+              <button type="button" onClick={onOpenSyllabus} className="gaming-button mx-auto mt-4 w-full max-w-xs justify-center sm:mt-6">צפה בפרטים</button>
             </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-text-muted">
-              אין מפגשים קרובים
-            </div>
-          )}
-        </div>
+          ) : <div className="flex flex-1 items-center justify-center py-8 text-text-muted">אין מפגשים קרובים</div>}
+        </section>
       </div>
     </div>
   );

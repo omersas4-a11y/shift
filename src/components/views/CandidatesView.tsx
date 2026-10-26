@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Papa from 'papaparse';
-import { ArrowDownToLine, ChevronDown, FileSpreadsheet, MessageCircle, Trash2, Upload, X } from 'lucide-react';
+import { ArrowDownToLine, ChevronDown, ClipboardList, ExternalLink, FileSpreadsheet, Mail, MessageCircle, Phone, Trash2, Upload, X } from 'lucide-react';
 import { useStore } from '../../StoreContext';
 import { Candidate, ChatMessage } from '../../types';
+import { extractCandidateRows } from '../../lib/candidateSpreadsheet';
 
-const columns: { id: Candidate['status']; title: string; accent: string }[] = [
-  { id: 'pending', title: 'חדשים', accent: 'border-t-blue-500' },
-  { id: 'accepted', title: 'עובר', accent: 'border-t-green-500' },
-  { id: 'rejected', title: 'לא עובר', accent: 'border-t-red-500' },
-  { id: 'maybe', title: 'מתנדנד', accent: 'border-t-amber-500' },
+const columns: { id: Candidate['status']; title: string; accent: string; dot: string }[] = [
+  { id: 'pending', title: 'חדשים', accent: 'border-t-blue-500', dot: 'bg-blue-500' },
+  { id: 'accepted', title: 'עובר', accent: 'border-t-green-500', dot: 'bg-green-500' },
+  { id: 'rejected', title: 'לא עובר', accent: 'border-t-red-500', dot: 'bg-red-500' },
+  { id: 'maybe', title: 'מתנדנד', accent: 'border-t-amber-500', dot: 'bg-amber-500' },
 ];
 
 const statusLabels: Record<Candidate['status'], string> = {
@@ -27,6 +29,31 @@ const normalize = (value: string) => value
   .replace(/\s+/g, ' ')
   .trim();
 
+function LinkedAnswer({ question, answer }: { question: string; answer: string }) {
+  const isResume = /קורות חיים|resume|\bcv\b/i.test(question);
+  const parts = String(answer).split(/(https?:\/\/[^\s<>"']+)/gi);
+
+  return <dd className="whitespace-pre-wrap break-words text-sm leading-6 text-text-main">
+    {parts.map((part, index) => {
+      if (!/^https?:\/\//i.test(part)) return <React.Fragment key={index}>{part}</React.Fragment>;
+      const href = part.replace(/[.,;:!?)}\]]+$/u, '');
+      const trailingText = part.slice(href.length);
+      try {
+        const url = new URL(href);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return <React.Fragment key={index}>{part}</React.Fragment>;
+        return <React.Fragment key={index}>
+          <a href={url.href} target="_blank" rel="noopener noreferrer" aria-label={isResume ? 'פתיחת קורות החיים בכרטיסייה חדשה' : `פתיחת קישור אל ${url.hostname} בכרטיסייה חדשה`} title={url.href} className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-lg border border-brand/25 bg-brand/10 px-2.5 py-1 font-bold text-brand transition hover:border-brand hover:bg-brand/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+            <ExternalLink size={14} className="shrink-0" aria-hidden="true" />
+            <span className="truncate">{isResume ? 'פתיחת קורות החיים' : `פתיחת קישור · ${url.hostname}`}</span>
+          </a>{trailingText}
+        </React.Fragment>;
+      } catch {
+        return <React.Fragment key={index}>{part}</React.Fragment>;
+      }
+    })}
+  </dd>;
+}
+
 function findAnswer(row: Record<string, string>, aliases: string[]) {
   const entries = Object.entries(row);
   const normalizedAliases = aliases.map(normalize);
@@ -41,7 +68,11 @@ function candidateFromRow(row: Record<string, string>, index: number) {
   const email = findAnswer(row, ['כתובת אימייל', 'כתובת דואר אלקטרוני', 'אימייל', 'דואר אלקטרוני', 'email', 'e-mail']);
   const phone = findAnswer(row, ['מספר טלפון', 'טלפון נייד', 'טלפון', 'phone', 'mobile']);
   const responseId = findAnswer(row, ['response id', 'form response id', 'מזהה תגובה']);
-  const name = findAnswer(row, ['שם מלא', 'שם פרטי ומשפחה', 'שם ומשפחה', 'שם המועמד', 'שם', 'full name', 'name'])
+  const firstName = findAnswer(row, ['שם פרטי', 'first name']);
+  const lastName = findAnswer(row, ['שם משפחה', 'last name']);
+  const name = findAnswer(row, ['שם מלא', 'שם פרטי ומשפחה', 'שם ומשפחה', 'שם המועמד', 'איך קוראים לך', 'full name'])
+    || [firstName, lastName].filter(Boolean).join(' ')
+    || findAnswer(row, ['שם', 'name'])
     || email
     || `מועמד חדש ${index + 1}`;
   const major = findAnswer(row, ['מגמה / תפקיד', 'מגמה', 'תפקיד', 'מסלול', 'major']);
@@ -60,9 +91,12 @@ function candidateFromRow(row: Record<string, string>, index: number) {
 }
 
 function signature(candidate: Pick<Candidate, 'name' | 'major' | 'joinReason' | 'email' | 'phone' | 'formResponseId' | 'formAnswers' | 'rawAnswers'>) {
-  if (candidate.formResponseId) return [`response:${normalize(candidate.formResponseId)}`];
-  if (candidate.email) return [`email:${normalize(candidate.email)}`];
-  if (candidate.phone) return [`phone:${candidate.phone.replace(/\D/g, '')}`];
+  const identities = [
+    candidate.formResponseId && `response:${normalize(candidate.formResponseId)}`,
+    candidate.email && `email:${normalize(candidate.email)}`,
+    candidate.phone && `phone:${candidate.phone.replace(/\D/g, '')}`,
+  ].filter((value): value is string => Boolean(value));
+  if (identities.length) return identities;
 
   const answers = candidate.formAnswers ?? candidate.rawAnswers ?? {};
   const fullResponse = Object.entries(answers)
@@ -76,6 +110,7 @@ export default function CandidatesView() {
   const { candidates, currentUser, updateCandidateStatus, addCandidates, addCandidateMessage, removeCandidate, removeAllCandidates } = useStore();
   const fileInput = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mobileStatus, setMobileStatus] = useState<Candidate['status']>('pending');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -101,58 +136,68 @@ export default function CandidatesView() {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [selectedCandidate]);
 
-  const importFile = (file?: File) => {
-    if (!file) return;
+  const importFile = async (file?: File) => {
+    if (!file || busy) return;
     setError('');
     setNotice('');
-    if (!file.name.toLocaleLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
-      setError('אפשר לייבא קובץ CSV בלבד.');
+    const isXlsx = file.name.toLocaleLowerCase().endsWith('.xlsx');
+    const isCsv = file.name.toLocaleLowerCase().endsWith('.csv') || file.type === 'text/csv';
+    if (!isCsv && !isXlsx) {
+      setError('אפשר לייבא קובץ CSV או XLSX בלבד.');
       return;
     }
 
     setBusy(true);
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: 'greedy',
-      transformHeader: header => header.replace(/^\uFEFF/, '').trim(),
-      complete: async result => {
-        try {
-          if (!result.meta.fields?.length) {
-            setError('לא נמצאו כותרות עמודות בקובץ. ייצאו את התשובות מ־Google Forms כ־CSV ונסו שוב.');
-            return;
-          }
-          const rows = result.data.filter(row => Object.values(row).some(value => String(value ?? '').trim()));
-          setNotice(`נקראו ${rows.length} שורות. בודק כפילויות לפני השמירה…`);
-          const seen = new Set(candidates.flatMap(signature));
-          let skipped = 0;
-          const pendingCandidates: Array<ReturnType<typeof candidateFromRow>> = [];
-          for (const [index, row] of rows.entries()) {
-            const candidate = candidateFromRow(row, index);
-            const keys = signature(candidate);
-            if (keys.some(key => seen.has(key))) {
-              skipped += 1;
-              continue;
-            }
-            keys.forEach(key => seen.add(key));
-            pendingCandidates.push(candidate);
-          }
-          setNotice(`נמצאו ${pendingCandidates.length} מועמדים חדשים מתוך ${rows.length} שורות. שומר…`);
-          await addCandidates(pendingCandidates);
-          const parseWarning = result.errors.length ? ` (${result.errors.length} שורות עם אזהרות CSV)` : '';
-          setNotice(`יובאו ${pendingCandidates.length} מתוך ${rows.length} שורות לחלונית „חדשים”${skipped ? ` · דולגו ${skipped} כפילויות` : ''}${parseWarning}.`);
-        } catch (importError) {
-          console.error('Candidate CSV import failed:', importError);
-          setError('הייבוא לא הושלם. בדקו הרשאות Firestore ואת מבנה קובץ ה־CSV.');
-        } finally {
-          setBusy(false);
-          if (fileInput.current) fileInput.current.value = '';
+    try {
+      let rows: Record<string, string>[];
+      let detail = '';
+      if (isXlsx) {
+        const { default: readExcelFile } = await import('read-excel-file/browser');
+        const parsed = extractCandidateRows(await readExcelFile(file));
+        rows = parsed.rows;
+        detail = ` · גיליון „${parsed.sheetName}”${parsed.skippedEmpty ? ` · דולגו ${parsed.skippedEmpty} שורות ללא פרטי קשר` : ''}`;
+      } else {
+        const result = await new Promise<Papa.ParseResult<Record<string, string>>>((resolve, reject) => {
+          Papa.parse<Record<string, string>>(file, {
+            header: true,
+            skipEmptyLines: 'greedy',
+            transformHeader: header => header.replace(/^\uFEFF/, '').trim(),
+            complete: resolve,
+            error: reject,
+          });
+        });
+        if (!result.meta.fields?.length) throw new Error('לא נמצאו כותרות עמודות בקובץ ה־CSV.');
+        rows = result.data.filter(row => Object.values(row).some(value => String(value ?? '').trim()));
+        if (result.errors.length) detail = ` · ${result.errors.length} שורות עם אזהרות CSV`;
+      }
+
+      setNotice(`נקראו ${rows.length} שורות. בודק כפילויות לפני השמירה…`);
+      const seen = new Set(candidates.flatMap(signature));
+      let skipped = 0;
+      const pendingCandidates: Array<ReturnType<typeof candidateFromRow>> = [];
+      for (const [index, row] of rows.entries()) {
+        const candidate = candidateFromRow(row, index);
+        const keys = signature(candidate);
+        if (keys.some(key => seen.has(key))) {
+          skipped += 1;
+          continue;
         }
-      },
-      error: parseError => {
-        setError(`לא הצלחנו לקרוא את הקובץ: ${parseError.message}`);
-        setBusy(false);
-      },
-    });
+        keys.forEach(key => seen.add(key));
+        pendingCandidates.push(candidate);
+      }
+      if (pendingCandidates.length) {
+        setNotice(`נמצאו ${pendingCandidates.length} מועמדים חדשים מתוך ${rows.length} שורות. שומר…`);
+        await addCandidates(pendingCandidates);
+      }
+      setNotice(`יובאו ${pendingCandidates.length} מתוך ${rows.length} שורות לחלונית „חדשים”${skipped ? ` · דולגו ${skipped} כפילויות` : ''}${detail}.`);
+    } catch (importError) {
+      console.error('Candidate import failed:', importError);
+      setNotice('');
+      setError(importError instanceof Error ? `הייבוא לא הושלם: ${importError.message}` : 'הייבוא לא הושלם. בדקו את מבנה הקובץ ואת החיבור ל־Firestore.');
+    } finally {
+      setBusy(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
   };
 
   const moveCandidate = async (candidateId: string, status: Candidate['status']) => {
@@ -220,7 +265,7 @@ export default function CandidatesView() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="@container space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="text-3xl font-black text-text-main mb-2">מיונים</h2>
@@ -234,7 +279,7 @@ export default function CandidatesView() {
             className="gaming-button shrink-0 disabled:cursor-wait disabled:opacity-60"
           >
             <Upload size={18} />
-            {busy ? 'מייבא…' : 'ייבוא CSV מ־Google Forms'}
+            {busy ? 'מייבא…' : 'ייבוא מועמדים מ־CSV / XLSX'}
           </button>
           <button
             type="button"
@@ -248,7 +293,7 @@ export default function CandidatesView() {
         <input
           ref={fileInput}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={event => importFile(event.target.files?.[0])}
         />
@@ -269,7 +314,7 @@ export default function CandidatesView() {
           <FileSpreadsheet className="text-brand shrink-0" size={22} />
           <div className="min-w-0 flex-1">
             <p className="font-bold text-text-main">ייבוא תשובות מטופס הרשמה</p>
-            <p className="text-sm text-text-muted">גררו לכאן קובץ CSV שיוצא מ־Google Forms, או לחצו על כפתור הייבוא. התשובות המלאות יישמרו בכרטיס המועמד.</p>
+            <p className="text-sm text-text-muted">גררו לכאן קובץ Excel ‏(XLSX) או CSV, או לחצו על כפתור הייבוא. הייבוא מזהה גיליון וכותרות ושומר את התשובות המלאות בכרטיס המועמד.</p>
           </div>
           <ArrowDownToLine className="hidden sm:block text-text-muted" size={20} />
         </div>
@@ -278,12 +323,31 @@ export default function CandidatesView() {
       {notice && <div role="status" className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm font-bold text-green-700 dark:text-green-300">{notice}</div>}
       {error && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-700 dark:text-red-300">{error}</div>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-4 items-start">
+      <div role="tablist" aria-label="קטגוריות מיונים" className="grid grid-cols-4 gap-1.5 md:hidden">
+        {columns.map(column => (
+          <button
+            key={column.id}
+            id={`candidate-tab-${column.id}`}
+            type="button"
+            role="tab"
+            aria-selected={mobileStatus === column.id}
+            aria-controls={`candidate-column-${column.id}`}
+            onClick={() => setMobileStatus(column.id)}
+            className={`flex min-h-12 min-w-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition-colors ${mobileStatus === column.id ? 'border-brand bg-brand/10 text-brand' : 'border-border bg-surface text-text-muted'}`}
+          >
+            <span className="truncate text-[11px] font-black leading-4">{column.title}</span>
+            <span className="text-[11px] font-bold leading-4">{grouped[column.id].length}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 @min-[760px]:grid-cols-4">
         {columns.map(column => {
           const items = grouped[column.id];
           return (
             <section
               key={column.id}
+              id={`candidate-column-${column.id}`}
               aria-label={column.title}
               onDragOver={event => event.preventDefault()}
               onDrop={event => {
@@ -291,13 +355,13 @@ export default function CandidatesView() {
                 const candidateId = event.dataTransfer.getData('text/candidate-id');
                 if (candidateId) void moveCandidate(candidateId, column.id);
               }}
-              className={`pixel-column min-h-64 rounded-2xl border border-border border-t-4 ${column.accent} bg-surface-alt/60 p-3 transition-colors ${dragging ? 'ring-2 ring-brand/30' : ''}`}
+              className={`pixel-column min-h-0 min-w-0 rounded-2xl border border-border border-t-4 ${column.accent} bg-surface-alt/60 p-2.5 transition-colors md:min-h-64 ${mobileStatus !== column.id ? 'hidden md:block' : ''} ${dragging ? 'ring-2 ring-brand/30' : ''}`}
             >
-              <div className="flex items-center justify-between px-1 pb-3">
-                <h3 className="text-lg font-black text-text-main">{column.title}</h3>
+              <div className="flex items-center justify-between px-1 pb-2.5">
+                <h3 className="flex items-center gap-2 text-base font-black text-text-main"><span className={`h-2 w-2 rounded-full ${column.dot}`} />{column.title}</h3>
                 <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-black text-text-muted">{items.length}</span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {items.map(candidate => (
                   <article
                     key={candidate.id}
@@ -306,20 +370,19 @@ export default function CandidatesView() {
                       event.dataTransfer.setData('text/candidate-id', candidate.id);
                       event.dataTransfer.effectAllowed = 'move';
                     }}
-                    className="gaming-card group cursor-grab p-4 active:cursor-grabbing"
+                    className="gaming-card group isolate cursor-grab p-2.5 active:cursor-grabbing sm:p-3"
                   >
-                    <button type="button" onClick={() => setSelectedId(candidate.id)} className="w-full text-right">
-                      <span className="flex items-start justify-between gap-3">
+                    <button type="button" onClick={() => setSelectedId(candidate.id)} className="w-full rounded-lg text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+                      <span className="flex items-start justify-between gap-2">
                         <span className="min-w-0">
-                          <span className="block truncate text-base font-black text-text-main">{candidate.name || 'מועמד חדש'}</span>
-                          <span className="mt-1 block truncate text-sm text-text-muted">{candidate.major || candidate.email || 'פרטי מועמד'}</span>
+                          <span className="block truncate text-sm font-black text-text-main" title={candidate.name}>{candidate.name || 'מועמד חדש'}</span>
+                          <span className="mt-0.5 block truncate text-xs text-text-muted">{candidate.major || candidate.email || 'פרטי מועמד'}</span>
                         </span>
-                        <MessageCircle size={17} className="mt-1 shrink-0 text-brand opacity-70 group-hover:opacity-100" />
+                        <MessageCircle size={16} className="mt-0.5 shrink-0 text-brand opacity-70 group-hover:opacity-100" />
                       </span>
-                      {candidate.joinReason && <span className="mt-3 line-clamp-2 block text-sm leading-6 text-text-muted">{candidate.joinReason}</span>}
                     </button>
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
-                      <span className="text-xs text-text-muted">{Object.keys(candidate.formAnswers ?? candidate.rawAnswers ?? {}).length} תשובות בטופס</span>
+                    <div className="mt-2 flex min-w-0 items-center gap-1 border-t border-border pt-2">
+                      <span className="mr-auto truncate text-[11px] text-text-muted">{Object.keys(candidate.formAnswers ?? candidate.rawAnswers ?? {}).length} תשובות</span>
                       <button
                         type="button"
                         aria-label={`הסרת המועמד ${candidate.name}`}
@@ -327,15 +390,15 @@ export default function CandidatesView() {
                         onClick={event => { event.stopPropagation(); setDeleteTargetId(candidate.id); }}
                         onKeyDown={event => event.stopPropagation()}
                         draggable={false}
-                        className="rounded-lg p-2 text-text-muted transition hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-                      ><Trash2 size={16} /></button>
+                        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-text-muted transition hover:bg-red-500/10 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                      ><Trash2 size={15} /></button>
                       <label className="sr-only" htmlFor={`candidate-status-${candidate.id}`}>שינוי סטטוס ל{candidate.name}</label>
                       <select
                         id={`candidate-status-${candidate.id}`}
                         value={candidate.status ?? 'pending'}
                         onClick={event => event.stopPropagation()}
                         onChange={event => void moveCandidate(candidate.id, event.target.value as Candidate['status'])}
-                        className="max-w-32 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-main"
+                        className="min-h-10 min-w-0 max-w-24 rounded-lg border border-border bg-surface px-1 py-1.5 text-[11px] font-bold text-text-main"
                       >
                         {columns.map(option => <option key={option.id} value={option.id}>{option.title}</option>)}
                       </select>
@@ -343,9 +406,9 @@ export default function CandidatesView() {
                   </article>
                 ))}
                 {items.length === 0 && (
-                  <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-border px-3 text-center text-sm text-text-muted">
+                  <div className="flex min-h-20 flex-col items-center justify-center rounded-xl border border-dashed border-border px-3 text-center text-sm text-text-muted sm:min-h-40">
                     <ChevronDown size={18} className="mb-2 opacity-60" />
-                    גררו מועמד לכאן
+                    אין מועמדים בקטגוריה
                   </div>
                 )}
               </div>
@@ -354,34 +417,41 @@ export default function CandidatesView() {
         })}
       </div>
 
-      {selectedCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedId(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="candidate-dialog-title" className="flex max-h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-border bg-surface shadow-2xl">
-            <header className="flex items-start justify-between gap-4 border-b border-border p-5 sm:p-6">
-              <div className="min-w-0">
-                <h2 id="candidate-dialog-title" className="truncate text-3xl font-black text-text-main">{selectedCandidate.name || 'מועמד חדש'}</h2>
-                <div className="mt-2 text-sm font-bold text-brand">פרטי מועמד · {statusLabels[selectedCandidate.status ?? 'pending']}</div>
-                <p className="mt-1 text-sm text-text-muted">{selectedCandidate.major || 'ללא מגמה'}{selectedCandidate.email ? ` · ${selectedCandidate.email}` : ''}</p>
+      {selectedCandidate && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-2 backdrop-blur-sm sm:p-5" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedId(null); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="candidate-dialog-title" className="flex max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-3xl">
+            <header className="shrink-0 border-b border-border bg-gradient-to-bl from-brand/10 via-surface to-surface p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="mb-1 text-[11px] font-black tracking-wide text-brand">תיק מועמד</div>
+                  <h2 id="candidate-dialog-title" className="break-words text-2xl font-black leading-tight text-text-main sm:text-3xl">{selectedCandidate.name || 'מועמד חדש'}</h2>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button type="button" onClick={() => setDeleteTargetId(selectedCandidate.id)} aria-label="הסרת מועמד" title="הסרת מועמד" className="grid h-10 w-10 place-items-center rounded-xl border border-red-500/30 text-red-600 transition hover:bg-red-500/10">
+                    <Trash2 size={17} />
+                  </button>
+                  <button type="button" onClick={() => setSelectedId(null)} aria-label="סגירה" className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-surface text-text-muted transition hover:bg-surface-alt hover:text-text-main"><X size={20} /></button>
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button type="button" onClick={() => setDeleteTargetId(selectedCandidate.id)} className="flex items-center gap-2 rounded-xl border border-red-500/30 px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-500/10">
-                  <Trash2 size={16} />הסרה
-                </button>
-                <button type="button" onClick={() => setSelectedId(null)} aria-label="סגירה" className="rounded-xl p-2 text-text-muted transition hover:bg-surface-alt hover:text-text-main"><X size={22} /></button>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+                <span className="rounded-full border border-brand/25 bg-brand/10 px-3 py-1.5 font-black text-brand">{statusLabels[selectedCandidate.status ?? 'pending']}</span>
+                {selectedCandidate.major && <span className="rounded-full border border-border bg-surface px-3 py-1.5 font-bold text-text-main">{selectedCandidate.major}</span>}
+                {selectedCandidate.email && <a href={`mailto:${selectedCandidate.email}`} dir="ltr" className="flex max-w-full items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 font-bold text-text-main hover:border-brand hover:text-brand"><Mail size={14} className="shrink-0" /><span className="min-w-0 break-all">{selectedCandidate.email}</span></a>}
+                {selectedCandidate.phone && <a href={`tel:${selectedCandidate.phone}`} dir="ltr" className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 font-bold text-text-main hover:border-brand hover:text-brand"><Phone size={14} />{selectedCandidate.phone}</a>}
               </div>
             </header>
 
-            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,0.75fr)]">
-              <div className="custom-scrollbar overflow-y-auto border-b border-border p-5 sm:p-6 lg:border-b-0 lg:border-l">
-                <h3 className="mb-4 text-lg font-black text-text-main">תשובות מטופס ההרשמה</h3>
+            <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(0,1.3fr)_minmax(290px,0.7fr)] lg:overflow-hidden">
+              <div className="custom-scrollbar border-b border-border p-4 sm:p-5 lg:overflow-y-auto lg:border-b-0 lg:border-l">
+                <h3 className="mb-4 flex items-center gap-2 text-base font-black text-text-main"><ClipboardList size={18} className="text-brand" />תשובות מטופס ההרשמה</h3>
                 {selectedCandidate.joinReason && (
-                  <div className="mb-4 rounded-2xl bg-brand/10 p-4">
+                  <div className="mb-4 rounded-2xl border border-brand/20 bg-brand/10 p-4">
                     <div className="mb-1 text-xs font-black text-brand">למה רוצים להצטרף</div>
-                    <p className="whitespace-pre-wrap text-sm leading-6 text-text-main">{selectedCandidate.joinReason}</p>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-text-main">{selectedCandidate.joinReason}</p>
                   </div>
                 )}
                 {Object.entries(selectedCandidate.formAnswers ?? selectedCandidate.rawAnswers ?? {}).filter(([, value]) => String(value ?? '').trim()).length ? (
-                  <dl className="divide-y divide-border rounded-2xl border border-border">
+                  <dl className="grid gap-2">
                     {Object.entries(selectedCandidate.formAnswers ?? selectedCandidate.rawAnswers ?? {})
                       .filter(([, value]) => String(value ?? '').trim())
                       .sort(([left], [right]) => {
@@ -389,9 +459,9 @@ export default function CandidatesView() {
                         return Number(!isName(left)) - Number(!isName(right));
                       })
                       .map(([question, answer]) => (
-                      <div key={question} className="grid gap-1 p-4 sm:grid-cols-[minmax(150px,0.42fr)_1fr] sm:gap-5">
-                        <dt className="text-sm font-bold text-text-muted">{question}</dt>
-                        <dd className="whitespace-pre-wrap break-words text-sm leading-6 text-text-main">{answer}</dd>
+                      <div key={question} className="rounded-xl border border-border bg-surface-alt/50 p-3.5">
+                        <dt className="mb-1 text-xs font-black text-text-muted">{question}</dt>
+                        <LinkedAnswer question={question} answer={answer} />
                       </div>
                     ))}
                   </dl>
@@ -400,7 +470,7 @@ export default function CandidatesView() {
                 )}
               </div>
 
-              <div className="flex min-h-[340px] flex-col lg:min-h-0">
+              <div className="flex min-h-[340px] flex-col bg-surface-alt/30 lg:min-h-0">
                 <div className="border-b border-border p-4 sm:p-5">
                   <div className="flex items-center gap-2 text-lg font-black text-text-main"><MessageCircle size={19} className="text-brand" />שיחת צוות על המועמד</div>
                   <p className="mt-1 text-xs text-text-muted">הודעות השיחה נשמרות בכרטיס המועמד וזמינות לצוות.</p>
@@ -423,11 +493,11 @@ export default function CandidatesView() {
               </div>
             </div>
           </section>
-        </div>
+        </div>, document.body
       )}
 
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/65 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !deleting) setDeleteTargetId(null); }}>
+      {deleteTarget && createPortal(
+        <div className="fixed inset-0 z-[110] grid place-items-center bg-black/65 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !deleting) setDeleteTargetId(null); }}>
           <section role="alertdialog" aria-modal="true" aria-labelledby="remove-candidate-title" className="w-full max-w-md rounded-2xl border border-red-500/40 bg-surface p-6 shadow-2xl">
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-red-500/10 text-red-600"><Trash2 size={22} /></div>
             <h2 id="remove-candidate-title" className="text-xl font-black text-text-main">להסיר את {deleteTarget.name}?</h2>
@@ -439,11 +509,11 @@ export default function CandidatesView() {
               </button>
             </div>
           </section>
-        </div>
+        </div>, document.body
       )}
 
-      {deleteAllOpen && (
-        <div className="fixed inset-0 z-[70] grid place-items-center bg-black/65 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !deletingAll) setDeleteAllOpen(false); }}>
+      {deleteAllOpen && createPortal(
+        <div className="fixed inset-0 z-[120] grid place-items-center bg-black/65 p-4" onMouseDown={event => { if (event.target === event.currentTarget && !deletingAll) setDeleteAllOpen(false); }}>
           <section role="alertdialog" aria-modal="true" aria-labelledby="remove-all-candidates-title" className="w-full max-w-md rounded-2xl border border-red-500/40 bg-surface p-6 shadow-2xl">
             <div className="mb-4 grid h-12 w-12 place-items-center rounded-xl bg-red-500/10 text-red-600"><Trash2 size={22} /></div>
             <h2 id="remove-all-candidates-title" className="text-xl font-black text-text-main">למחוק את כל המועמדים?</h2>
@@ -455,7 +525,7 @@ export default function CandidatesView() {
               </button>
             </div>
           </section>
-        </div>
+        </div>, document.body
       )}
     </div>
   );

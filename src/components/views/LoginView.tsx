@@ -1,31 +1,48 @@
+import type { CSSProperties } from 'react';
 import { useStore } from '../../StoreContext';
-
-const USERS = ['אליאור', 'עומר', "טל ג'וניור", 'יוגב', 'טל סניור'];
+import { TEAM_CHARACTERS } from '../../team';
+import './LoginView.css';
 
 export default function LoginView() {
   const { setCurrentUser } = useStore();
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-bg text-text-main font-sans w-full p-8 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[120px] pointer-events-none"></div>
-      
-      <div className="z-10 text-center w-full max-w-md">
-        <div className="w-64 h-auto mx-auto mb-8 flex items-center justify-center">
-          <img src="/logos/shift logo.png" alt="Shift Logo" className="w-full h-auto object-contain drop-shadow-[0_0_15px_rgba(var(--brand),0.3)]" />
-        </div>
-        
-        <h1 className="text-3xl font-black text-text-main mb-2">ברוכים הבאים למערכת SHIFT</h1>
-        <p className="text-text-muted mb-8">בחרו שם לתצוגה בצוות</p>
-        
-        <div className="flex flex-col gap-4">
-          {USERS.map(user => (
-            <button key={user} onClick={() => setCurrentUser(user)} className="gaming-button text-xl py-4">
-              {user}
+    <main className="character-select" dir="rtl" aria-labelledby="character-heading">
+      <div className="character-select__content">
+        <img src="/logos/shift logo.png" alt="SHIFT" className="character-select__logo" />
+        <div className="character-select__eyebrow" aria-hidden="true"><span /> הצוות של SHIFT <span /></div>
+        <h1 id="character-heading">מי נכנס למשחק?</h1>
+        <p className="character-select__intro">בחרו את הדמות שלכם ובואו נתחיל.</p>
+        <div className="character-select__roster" aria-label="בחירת חבר צוות">
+          {TEAM_CHARACTERS.map(({ name, row, color }, index) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setCurrentUser(name)}
+              className="character-choice"
+              aria-label={`כניסה בתור ${name}`}
+              style={{
+                '--character-color': color,
+                '--sprite-row': `${row * 100 / 3}%`,
+                '--blink-offset': ['6.4cqw', '5.8cqw', '6.1cqw', '5.1cqw'][row],
+                '--wave-offset': ['11.5cqw', '10.7cqw', '10.5cqw', '8.2cqw'][row],
+                '--center-offset': ['-4.9cqw', '-4.7cqw', '-4.9cqw', '-3.8cqw'][row],
+                '--baseline-offset': ['0cqw', '0cqw', '3.2cqw', '4.5cqw'][row],
+                '--blink-delay': `${index * -1.6}s`,
+              } as CSSProperties}
+            >
+              <span className="character-choice__stage" aria-hidden="true">
+                <span className="character-choice__sprite" />
+                <span className="character-choice__blink" />
+                <span className="character-choice__wave" />
+              </span>
+              <span className="character-choice__name">{name}</span>
+              <span className="character-choice__action" aria-hidden="true">בואו נשחק <span>←</span></span>
             </button>
           ))}
         </div>
+        <p className="character-select__footer"><span aria-hidden="true">✦</span> ארבע דמויות. צוות אחד.</p>
       </div>
-    </div>
+    </main>
   );
 }

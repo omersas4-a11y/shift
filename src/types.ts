@@ -5,6 +5,14 @@ export interface Equipment {
   status: 'available' | 'in_use' | 'maintenance';
 }
 
+export interface MeetingEquipment {
+  id: string;
+  meetingId: string;
+  name: string;
+  quantity: number;
+  assignedTo: string;
+}
+
 export interface NextMeetingRequirement {
   id: string;
   personName: string;
@@ -14,11 +22,16 @@ export interface NextMeetingRequirement {
 
 export interface Meeting {
   id: string;
+  feedbackCode?: string;
   title: string;
   date: string;
   time: string;
   location: string;
   lecturer: string;
+  lecturerEmail?: string;
+  lecturerPhone?: string;
+  secondLecturer?: { name: string; email: string; phone: string } | null;
+  status?: 'unscheduled' | 'in_progress' | 'closed';
   content: string;
 }
 
@@ -54,6 +67,16 @@ export interface Expense {
   amount: number;
   date: string;
   category: string;
+  paidBy?: string;
+  receiptPath?: string;
+}
+
+export interface ActivityEvent {
+  id: string;
+  category: 'logistics' | 'candidates' | 'syllabus' | 'budget';
+  text: string;
+  actor: string;
+  createdAt: string;
 }
 
 export interface Budget {
