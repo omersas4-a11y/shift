@@ -51,9 +51,10 @@ body {
 .team-avatar__sprite {
   position: absolute;
   top: var(--avatar-top);
-  left: -52px;
-  width: 132px;
-  height: 132px;
+  left: calc(50% + var(--avatar-x));
+  width: 76px;
+  height: 76px;
+  transform: translateX(-50%);
   background: url('/team/shift-team-sprites.png') 0 var(--avatar-row) / 400% 400% no-repeat;
   image-rendering: pixelated;
 }
