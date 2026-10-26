@@ -3,15 +3,18 @@ import { useState } from 'react';
 import { LayoutDashboard, Package, Calendar, Wallet, Sun, Moon, LogOut, ClipboardList, FolderOpen, UsersRound, Link2, Bell } from 'lucide-react';
 import { useStore } from '../StoreContext';
 import ActivityDrawer from './ActivityDrawer';
+import TeamAvatar from './TeamAvatar';
+import type { ActivityEvent } from '../types';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   isDarkMode: boolean;
   setIsDarkMode: (isDark: boolean) => void;
+  onSelectActivity: (event: ActivityEvent) => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDarkMode }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDarkMode, onSelectActivity }: SidebarProps) {
   const { currentUser, setCurrentUser, activityEvents } = useStore();
   const [showQuickLinks, setShowQuickLinks] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
@@ -99,9 +102,7 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
 
         <div className="flex items-center justify-between p-3 bg-surface rounded border border-border group">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center border border-brand text-brand font-bold text-sm">
-              {currentUser ? currentUser.substring(0, 2).toUpperCase() : 'GM'}
-            </div>
+            <TeamAvatar name={currentUser} />
             <div>
               <div className="text-sm font-bold text-text-main truncate max-w-[100px]">{currentUser || 'Guild Master'}</div>
               <div className="text-xs text-text-muted">מנהל מערכת</div>
@@ -124,7 +125,7 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
         return <button key={item.id} type="button" onClick={() => setActiveTab(item.id)} aria-current={isActive ? 'page' : undefined} className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[10px] font-bold leading-none transition-colors ${isActive ? 'bg-brand/10 text-brand' : 'text-text-muted'}`}><Icon size={20} strokeWidth={isActive ? 2.6 : 2} /><span className="truncate">{item.label}</span></button>;
       })}
     </nav>
-    {showActivity && <ActivityDrawer events={activityEvents} onClose={() => setShowActivity(false)} onSelect={category => { setActiveTab(category); setShowActivity(false); }} />}
+    {showActivity && <ActivityDrawer events={activityEvents} onClose={() => setShowActivity(false)} onSelect={event => { onSelectActivity(event); setShowActivity(false); }} />}
     </>
   );
 }

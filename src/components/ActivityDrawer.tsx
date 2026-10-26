@@ -13,7 +13,7 @@ const categories: Record<ActivityEvent['category'], { label: string; badge: stri
 export default function ActivityDrawer({ events, onClose, onSelect }: {
   events: ActivityEvent[];
   onClose: () => void;
-  onSelect: (category: ActivityEvent['category']) => void;
+  onSelect: (event: ActivityEvent) => void;
 }) {
   const [olderEvents, setOlderEvents] = useState<ActivityEvent[]>([]);
   const [hasMore, setHasMore] = useState(events.length >= 40);
@@ -56,7 +56,7 @@ export default function ActivityDrawer({ events, onClose, onSelect }: {
           {!allEvents.length && <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-text-muted">פעולות חדשות יופיעו כאן לאחר שמירה במערכת.</div>}
           {allEvents.map(event => {
             const category = categories[event.category] || categories.logistics;
-            return <button key={event.id} type="button" onClick={() => onSelect(event.category)} className="flex w-full gap-3 rounded-2xl border border-border bg-surface-alt/60 p-4 text-right transition-colors hover:border-brand/50 hover:bg-brand/5">
+            return <button key={event.id} type="button" onClick={() => onSelect(event)} className="flex w-full gap-3 rounded-2xl border border-border bg-surface-alt/60 p-4 text-right transition-colors hover:border-brand/50 hover:bg-brand/5">
               <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${category.dot}`} />
               <span className="min-w-0 flex-1"><span className="mb-2 flex flex-wrap items-center justify-between gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${category.badge}`}>{category.label}</span><time dateTime={event.createdAt} className="text-[11px] text-text-muted">{new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(event.createdAt))}</time></span><span className="block break-words text-sm font-bold text-text-main">{event.text}</span><span className="mt-1 block text-xs text-text-muted">על ידי {event.actor || 'חבר צוות'}</span></span>
             </button>;

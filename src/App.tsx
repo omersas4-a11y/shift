@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatPanel from './components/ChatPanel';
 import LogisticsView from './components/views/LogisticsView';
@@ -9,10 +9,15 @@ import LoginView from './components/views/LoginView';
 import CandidatesView from './components/views/CandidatesView';
 import { MessageSquare, RefreshCw, WifiOff } from 'lucide-react';
 import { useStore } from './StoreContext';
+import { resolveCandidateMessageTarget } from './lib/activityNavigation';
+import type { CandidateNavigationTarget } from './lib/activityNavigation';
+import type { ActivityEvent } from './types';
 
 export default function App() {
-  const { currentUser, syncStatus, hasLoaded, retrySync } = useStore();
+  const { currentUser, candidates, syncStatus, hasLoaded, retrySync } = useStore();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [candidateTarget, setCandidateTarget] = useState<CandidateNavigationTarget | null>(null);
+  const navigationSequence = useRef(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -24,6 +29,18 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  const selectTab = (tab: string) => {
+    setCandidateTarget(null);
+    setActiveTab(tab);
+  };
+
+  const selectActivity = (event: ActivityEvent) => {
+    const target = resolveCandidateMessageTarget(event, candidates);
+    navigationSequence.current += 1;
+    setCandidateTarget(target ? { ...target, requestId: navigationSequence.current } : null);
+    setActiveTab(event.category);
+  };
+
   if (!currentUser) {
     return <LoginView />;
   }
@@ -31,16 +48,16 @@ export default function App() {
   const renderContent = () => {
     switch (activeTab) {
       case 'logistics':
-        return <LogisticsView onOpenSyllabus={() => setActiveTab('syllabus')} />;
+        return <LogisticsView onOpenSyllabus={() => selectTab('syllabus')} />;
       case 'syllabus':
         return <SyllabusView />;
       case 'budget':
         return <BudgetView />;
       case 'candidates':
-        return <CandidatesView />;
+        return <CandidatesView target={candidateTarget} />;
       case 'dashboard':
       default:
-        return <DashboardView onOpenSyllabus={() => setActiveTab('syllabus')} />;
+        return <DashboardView onOpenSyllabus={() => selectTab('syllabus')} />;
     }
   };
 
@@ -53,7 +70,7 @@ export default function App() {
         <span className="pixel-particle pixel-sprite--controller" />
         <span className="pixel-particle pixel-sprite--bolt" />
       </div>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+      <Sidebar activeTab={activeTab} setActiveTab={selectTab} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onSelectActivity={selectActivity} />
       
       <main className="shift-main relative z-[1] min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto pb-[env(safe-area-inset-bottom)] md:h-full">
         {/* Background glow effects */}

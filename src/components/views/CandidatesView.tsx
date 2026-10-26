@@ -5,6 +5,7 @@ import { ArrowDownToLine, ChevronDown, ClipboardList, ExternalLink, FileSpreadsh
 import { useStore } from '../../StoreContext';
 import { Candidate, ChatMessage } from '../../types';
 import { extractCandidateRows } from '../../lib/candidateSpreadsheet';
+import type { CandidateNavigationTarget } from '../../lib/activityNavigation';
 
 const columns: { id: Candidate['status']; title: string; accent: string; dot: string }[] = [
   { id: 'pending', title: 'חדשים', accent: 'border-t-blue-500', dot: 'bg-blue-500' },
@@ -106,9 +107,10 @@ function signature(candidate: Pick<Candidate, 'name' | 'major' | 'joinReason' | 
   return [`response:${fullResponse || normalize(`${candidate.name}|${candidate.major}|${candidate.joinReason}`)}`];
 }
 
-export default function CandidatesView() {
+export default function CandidatesView({ target }: { target: CandidateNavigationTarget | null }) {
   const { candidates, currentUser, updateCandidateStatus, addCandidates, addCandidateMessage, removeCandidate, removeAllCandidates } = useStore();
   const fileInput = useRef<HTMLInputElement>(null);
+  const handledTarget = useRef<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileStatus, setMobileStatus] = useState<Candidate['status']>('pending');
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -126,6 +128,29 @@ export default function CandidatesView() {
   const grouped = useMemo(() => Object.fromEntries(
     columns.map(column => [column.id, candidates.filter(candidate => (candidate.status ?? 'pending') === column.id)])
   ) as Record<Candidate['status'], Candidate[]>, [candidates]);
+
+  useEffect(() => {
+    if (!target || handledTarget.current === target.requestId) return;
+    handledTarget.current = target.requestId;
+    const candidate = candidates.find(item => item.id === target.candidateId);
+    if (!candidate) {
+      setNotice('המועמד שאליו מפנה ההתראה כבר אינו זמין.');
+      return;
+    }
+    setNotice('');
+    setMobileStatus(candidate.status ?? 'pending');
+    setSelectedId(candidate.id);
+  }, [target, candidates]);
+
+  useEffect(() => {
+    if (!target?.messageId || selectedId !== target.candidateId) return;
+    const frame = requestAnimationFrame(() => {
+      const messageElement = document.getElementById(`candidate-message-${target.messageId}`);
+      messageElement?.scrollIntoView({ block: 'center' });
+      messageElement?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [target, selectedId]);
 
   useEffect(() => {
     if (!selectedCandidate) return;
@@ -256,7 +281,7 @@ export default function CandidatesView() {
     };
     setMessage('');
     try {
-      await addCandidateMessage(selectedCandidate.id, chatMessage);
+      await addCandidateMessage(selectedCandidate.id, chatMessage, selectedCandidate.name);
     } catch (sendError) {
       console.error('Candidate message failed:', sendError);
       setMessage(chatMessage.text);
@@ -370,7 +395,7 @@ export default function CandidatesView() {
                       event.dataTransfer.setData('text/candidate-id', candidate.id);
                       event.dataTransfer.effectAllowed = 'move';
                     }}
-                    className="gaming-card group isolate cursor-grab p-2.5 active:cursor-grabbing sm:p-3"
+                    className="gaming-card candidate-card group isolate cursor-grab p-2.5 active:cursor-grabbing sm:p-3"
                   >
                     <button type="button" onClick={() => setSelectedId(candidate.id)} className="w-full rounded-lg text-right focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
                       <span className="flex items-start justify-between gap-2">
@@ -479,9 +504,9 @@ export default function CandidatesView() {
                   {(selectedCandidate.messages ?? []).length ? selectedCandidate.messages?.map(chatMessage => {
                     const ownMessage = chatMessage.senderName === currentUser;
                     return (
-                      <div key={chatMessage.id} className={`flex flex-col ${ownMessage ? 'items-end' : 'items-start'}`}>
+                      <div key={chatMessage.id} id={`candidate-message-${chatMessage.id}`} tabIndex={-1} className={`flex flex-col rounded-lg focus:outline-none ${ownMessage ? 'items-end' : 'items-start'}`}>
                         <span className="mb-1 px-1 text-[11px] font-bold text-text-muted">{chatMessage.senderName} · {chatMessage.timestamp}</span>
-                        <p className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-6 ${ownMessage ? 'rounded-tl-sm bg-brand text-white' : 'rounded-tr-sm bg-surface-alt text-text-main'}`}>{chatMessage.text}</p>
+                        <p className={`max-w-[92%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-6 ${target?.candidateId === selectedCandidate.id && target.messageId === chatMessage.id ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-surface' : ''} ${ownMessage ? 'rounded-tl-sm bg-brand text-white' : 'rounded-tr-sm bg-surface-alt text-text-main'}`}>{chatMessage.text}</p>
                       </div>
                     );
                   }) : <div className="grid h-full min-h-24 place-items-center text-center text-sm text-text-muted">אין הודעות עדיין. התחילו שיחה על המועמד.</div>}

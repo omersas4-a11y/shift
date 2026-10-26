@@ -36,7 +36,7 @@ interface StoreContextType extends StoreState {
   updateMeetingEquipment: (id: string, item: Omit<MeetingEquipment, 'id'>) => Promise<void>;
   removeMeetingEquipment: (id: string) => Promise<void>;
   setLogisticsEmailRecipients: (recipients: string[]) => Promise<void>;
-  addCandidateMessage: (candidateId: string, message: ChatMessage) => Promise<void>;
+  addCandidateMessage: (candidateId: string, message: ChatMessage, candidateName: string) => Promise<void>;
   addExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   updateExpense: (id: string, expense: Omit<Expense, 'id'>) => Promise<void>;
   removeExpense: (id: string) => Promise<void>;
@@ -238,7 +238,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const updateMeetingEquipment = async (id: string, item: Omit<MeetingEquipment, 'id'>) => { await sendStoreAction('meetingEquipment.update', { id, item }); };
   const removeMeetingEquipment = async (id: string) => { await sendStoreAction('meetingEquipment.remove', { id }); };
   const setLogisticsEmailRecipients = async (recipients: string[]) => { await sendStoreAction('logistics.emailRecipients', { recipients }); };
-  const addCandidateMessage = async (id: string, message: ChatMessage) => { await sendStoreAction('candidate.message', { id, message }); };
+  const addCandidateMessage = async (id: string, message: ChatMessage, candidateName: string) => { await sendStoreAction('candidate.message', { id, message, candidateName }); };
   const addExpense = async (expense: Omit<Expense, 'id'>) => { await sendStoreAction('budget.expense', { expense }); };
   const updateExpense = async (id: string, expense: Omit<Expense, 'id'>) => { await sendStoreAction('budget.expense.update', { id, expense }); };
   const removeExpense = async (id: string) => { await sendStoreAction('budget.expense.remove', { id }); };

@@ -77,6 +77,8 @@ export interface ActivityEvent {
   text: string;
   actor: string;
   createdAt: string;
+  candidateId?: string;
+  messageId?: string;
 }
 
 export interface Budget {

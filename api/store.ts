@@ -132,7 +132,12 @@ function activityFor(action: string, payload: any, deletedCount = 0) {
     case 'candidate.status': return { category: 'candidates', text: `סטטוס מועמד שונה ל${({ pending: 'חדשים', accepted: 'עובר', rejected: 'לא עובר', maybe: 'מתנדנד' } as Record<string, string>)[payload.status] || 'סטטוס חדש'}` };
     case 'candidate.remove': return { category: 'candidates', text: 'מועמד הוסר מהמיונים' };
     case 'candidate.removeAll': return { category: 'candidates', text: `נמחקו ${deletedCount} מועמדים מהמיונים` };
-    case 'candidate.message': return { category: 'candidates', text: 'נוספה הודעה לשיחת מועמד' };
+    case 'candidate.message': return {
+      category: 'candidates',
+      text: `נוספה הודעה לשיחת מועמד: ${String(payload.candidateName || 'מועמד').slice(0, 80)}`,
+      candidateId: String(payload.id || ''),
+      messageId: String(payload.message?.id || ''),
+    };
     case 'meetingEquipment.add': return { category: 'logistics', text: `נוסף ציוד: ${payload.item?.name || 'פריט חדש'}` };
     case 'meetingEquipment.update': return { category: 'logistics', text: `ציוד עודכן: ${payload.item?.name || 'פריט'}` };
     case 'meetingEquipment.remove': return { category: 'logistics', text: 'ציוד הוסר ממפגש' };
