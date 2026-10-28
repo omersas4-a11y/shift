@@ -11,6 +11,10 @@ export interface MeetingEquipment {
   name: string;
   quantity: number;
   assignedTo: string;
+  sourceEquipmentId?: string;
+  excluded?: boolean;
+  inheritName?: boolean;
+  inheritQuantity?: boolean;
 }
 
 export interface NextMeetingRequirement {

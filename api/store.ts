@@ -143,6 +143,8 @@ function activityFor(action: string, payload: any, deletedCount = 0) {
     case 'meetingEquipment.remove': return { category: 'logistics', text: 'ציוד הוסר ממפגש' };
     case 'logistics.emailRecipients': return { category: 'logistics', text: 'עודכנו נמעני הדוא״ל בלוגיסטיקה' };
     case 'equipment.add': return { category: 'logistics', text: `נוסף ציוד: ${payload.name || 'פריט חדש'}` };
+    case 'equipment.update': return { category: 'logistics', text: `מלאי עודכן: ${payload.equipment?.name || 'פריט'}` };
+    case 'equipment.remove': return { category: 'logistics', text: 'פריט הוסר מהמלאי הכללי' };
     case 'equipment.status': return { category: 'logistics', text: 'סטטוס ציוד עודכן' };
     case 'requirement.add': return { category: 'logistics', text: 'נוספה דרישת ציוד למפגש' };
     case 'requirement.toggle': return { category: 'logistics', text: 'סימון דרישת ציוד עודכן' };
@@ -163,15 +165,29 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
   let deletedCount = 0;
   switch (action) {
     case 'equipment.add': {
+      if (typeof payload.name !== 'string' || !payload.name.trim() || !Number.isInteger(payload.quantity) || payload.quantity < 1) throw new Error('Invalid inventory item');
       const ref = collection('equipment').doc();
-      await ref.set({ ...payload, id: ref.id });
+      await ref.set({ name: payload.name.trim(), quantity: payload.quantity, status: 'available', id: ref.id });
       break;
     }
+    case 'equipment.update': {
+      const equipment = payload.equipment;
+      if (!id(payload.id) || typeof equipment?.name !== 'string' || !equipment.name.trim() || !Number.isInteger(equipment.quantity) || equipment.quantity < 1) throw new Error('Invalid inventory item');
+      await collection('equipment').doc(id(payload.id)).update({ name: equipment.name.trim(), quantity: equipment.quantity });
+      break;
+    }
+    case 'equipment.remove':
+      await collection('equipment').doc(id(payload.id)).delete();
+      break;
     case 'equipment.status':
       await collection('equipment').doc(id(payload.id)).update({ status: payload.status });
       break;
     case 'meetingEquipment.add': {
-      const ref = meetingEquipmentCollection(db).doc();
+      const item = payload.item;
+      if (!item?.meetingId || !item?.name || !Number.isInteger(item.quantity) || item.quantity < 1) throw new Error('Invalid meeting equipment');
+      const source = String(item.sourceEquipmentId || '');
+      if (source && (!/^[A-Za-z0-9_-]+$/.test(item.meetingId) || !/^[A-Za-z0-9_-]+$/.test(source))) throw new Error('Invalid inventory source');
+      const ref = source ? meetingEquipmentCollection(db).doc(`default-${item.meetingId}-${source}`) : meetingEquipmentCollection(db).doc();
       await ref.set({ ...payload.item, id: ref.id });
       break;
     }

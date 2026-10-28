@@ -20,7 +20,9 @@ interface StoreContextType extends StoreState {
   hasLoaded: boolean;
   retrySync: () => void;
   setCurrentUser: (user: string | null) => void;
-  addEquipment: (eq: Omit<Equipment, 'id'>) => void;
+  addEquipment: (eq: Omit<Equipment, 'id'>) => Promise<void>;
+  updateEquipment: (id: string, equipment: Omit<Equipment, 'id'>) => Promise<void>;
+  removeEquipment: (id: string) => Promise<void>;
   updateEquipmentStatus: (id: string, status: Equipment['status']) => void;
   addRequirement: (req: Omit<NextMeetingRequirement, 'id' | 'isBrought'>) => void;
   toggleRequirement: (id: string) => void;
@@ -192,7 +194,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const setCurrentUser = (currentUser: string | null) => setState(s => ({ ...s, currentUser: normalizeTeamMember(currentUser) }));
   const retrySync = () => { void refreshRef.current(); };
-  const addEquipment = async (eq: Omit<Equipment, 'id'>) => sendStoreAction('equipment.add', eq);
+  const addEquipment = async (eq: Omit<Equipment, 'id'>) => { await sendStoreAction('equipment.add', eq); };
+  const updateEquipment = async (id: string, equipment: Omit<Equipment, 'id'>) => { await sendStoreAction('equipment.update', { id, equipment }); };
+  const removeEquipment = async (id: string) => { await sendStoreAction('equipment.remove', { id }); };
   const updateEquipmentStatus = async (id: string, status: Equipment['status']) => sendStoreAction('equipment.status', { id, status });
   const addRequirement = async (req: Omit<NextMeetingRequirement, 'id' | 'isBrought'>) => sendStoreAction('requirement.add', req);
   const toggleRequirement = async (id: string) => sendStoreAction('requirement.toggle', { id });
@@ -247,7 +251,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <StoreContext.Provider value={{
-      ...state, syncStatus, hasLoaded, retrySync, setCurrentUser, addEquipment, updateEquipmentStatus, addRequirement, toggleRequirement,
+      ...state, syncStatus, hasLoaded, retrySync, setCurrentUser, addEquipment, updateEquipment, removeEquipment, updateEquipmentStatus, addRequirement, toggleRequirement,
       addMeeting, removeMeeting, updateMeeting, addCandidate, addCandidates, updateCandidateStatus,
       removeCandidate, removeAllCandidates, addCandidateMessage, addMeetingEquipment, updateMeetingEquipment,
       removeMeetingEquipment, setLogisticsEmailRecipients, addExpense, updateExpense, removeExpense, setTotalBudget, addChannelMessage,

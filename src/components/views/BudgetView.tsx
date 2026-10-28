@@ -2,7 +2,7 @@ import React from "react";
 import { useState, useEffect } from 'react';
 import { useStore } from '../../StoreContext';
 import { Wallet, TrendingDown, Pencil, Check, X, Trash2, ImagePlus, Receipt } from 'lucide-react';
-import { TEAM_MEMBERS } from '../../team';
+import { normalizeTeamMember, TEAM_MEMBERS } from '../../team';
 import { blobToDataUrl, compressReceipt } from '../../lib/receiptImage';
 
 async function uploadReceipt(file: File) {
@@ -49,6 +49,12 @@ export default function BudgetView() {
   const totalSpent = budget.expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const remaining = budget.totalAnnual - totalSpent;
   const spentPercentage = budget.totalAnnual > 0 ? Math.min((totalSpent / budget.totalAnnual) * 100, 100) : 0;
+  const paymentsByMember = TEAM_MEMBERS.map(member => {
+    const expenses = budget.expenses.filter(expense => normalizeTeamMember(expense.paidBy) === member);
+    return { member, count: expenses.length, total: expenses.reduce((sum, expense) => sum + expense.amount, 0) };
+  });
+  const unassignedExpenses = budget.expenses.filter(expense => !normalizeTeamMember(expense.paidBy));
+  const unassignedTotal = unassignedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
   
   // Danger zone if > 85%
   const isDanger = spentPercentage > 85;
@@ -257,6 +263,14 @@ export default function BudgetView() {
           </div>
         </div>
       </div>
+
+      <section aria-labelledby="payments-by-member-title" className="space-y-4">
+        <div><h3 id="payments-by-member-title" className="text-xl font-black text-text-main">כמה כל אחד שילם?</h3><p className="mt-1 text-sm text-text-muted">סכום ההוצאות שנרשמו על שם כל חבר צוות.</p></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {paymentsByMember.map(({ member, count, total }) => <div key={member} className="gaming-card p-4 sm:p-5"><div className="text-sm font-bold text-text-muted">{member}</div><div className="mt-2 text-2xl font-black text-text-main">₪{total.toLocaleString('he-IL')}</div><div className="mt-1 text-xs text-text-muted">{count} {count === 1 ? 'הוצאה' : 'הוצאות'}</div></div>)}
+        </div>
+        {unassignedExpenses.length > 0 && <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-text-main">ללא שיוך לחבר צוות: <strong>₪{unassignedTotal.toLocaleString('he-IL')}</strong> ({unassignedExpenses.length} הוצאות)</p>}
+      </section>
 
       {/* Expenses History */}
       <div>

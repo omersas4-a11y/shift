@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, CalendarDays, Check, ChevronLeft, Clock3, Copy, Mail, MapPin,
-  MessageCircle, PackagePlus, Pencil, Plus, Trash2, Users, X,
+  MessageCircle, PackagePlus, Pencil, Plus, RotateCcw, Trash2, Users, X,
 } from 'lucide-react';
 import { useStore } from '../../StoreContext';
 import { MeetingEquipment } from '../../types';
 import { TEAM_MEMBERS } from '../../team';
+import InventoryManager from '../InventoryManager';
+import { getMeetingEquipment, inventoryItemId } from '../../lib/logisticsInventory';
 
 const formatDate = (value: string) => {
   if (!value) return 'תאריך לא נקבע';
@@ -17,7 +19,7 @@ const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () => void }) {
   const {
-    meetings, meetingEquipment, logisticsEmailRecipients, currentUser,
+    meetings, equipment, meetingEquipment, logisticsEmailRecipients, currentUser,
     addMeetingEquipment, updateMeetingEquipment, removeMeetingEquipment, setLogisticsEmailRecipients,
   } = useStore();
   const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null);
@@ -34,9 +36,9 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
 
   const orderedMeetings = useMemo(() => [...meetings].sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)), [meetings]);
   const activeMeeting = meetings.find(meeting => meeting.id === activeMeetingId) ?? null;
-  const activeItems = useMemo(() => meetingEquipment
-    .filter(item => item.meetingId === activeMeetingId)
-    .sort((a, b) => a.name.localeCompare(b.name, 'he')), [meetingEquipment, activeMeetingId]);
+  const { items: activeItems, hiddenDefaults } = useMemo(() => activeMeetingId
+    ? getMeetingEquipment(activeMeetingId, equipment, meetingEquipment)
+    : { items: [], hiddenDefaults: [] }, [equipment, meetingEquipment, activeMeetingId]);
   const assignedCount = activeItems.filter(item => item.assignedTo).length;
   const parsedRecipients = logisticsEmailRecipients;
   const messageText = useMemo(() => {
@@ -82,9 +84,11 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
     event.preventDefault();
     if (!activeMeeting || !name.trim() || quantity < 1) return;
     setSaving(true); setError(''); setFeedback('');
-    const item = { meetingId: activeMeeting.id, name: name.trim(), quantity, assignedTo };
+    const existing = activeItems.find(item => item.id === editingItemId);
+    const stock = equipment.find(entry => entry.id === existing?.sourceEquipmentId);
+    const item = { meetingId: activeMeeting.id, name: name.trim(), quantity, assignedTo, ...(stock ? { sourceEquipmentId: stock.id, inheritName: name.trim() === stock.name, inheritQuantity: quantity === stock.quantity } : {}) };
     try {
-      if (editingItemId) await updateMeetingEquipment(editingItemId, item);
+      if (editingItemId && !editingItemId.startsWith('inventory:')) await updateMeetingEquipment(editingItemId, item);
       else await addMeetingEquipment(item);
       setFeedback(editingItemId ? 'פרטי הציוד עודכנו.' : 'הציוד נוסף למפגש.');
       resetItemForm();
@@ -100,12 +104,33 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
     if (!window.confirm(`להסיר את „${item.name}” מרשימת הציוד למפגש?`)) return;
     setError(''); setFeedback('');
     try {
-      await removeMeetingEquipment(item.id);
+      if (item.sourceEquipmentId) {
+        const hidden = { meetingId: item.meetingId, name: item.name, quantity: item.quantity, assignedTo: item.assignedTo, sourceEquipmentId: item.sourceEquipmentId, excluded: true };
+        if (item.id.startsWith('inventory:')) await addMeetingEquipment(hidden);
+        else await updateMeetingEquipment(item.id, hidden);
+      } else await removeMeetingEquipment(item.id);
       setFeedback('הציוד הוסר מהמפגש.');
     } catch (removeError) {
       console.error('Meeting equipment removal failed:', removeError);
       setError('לא ניתן להסיר את הציוד כרגע.');
     }
+  };
+
+  const resetDefault = async (item: MeetingEquipment) => {
+    setError(''); setFeedback('');
+    try {
+      await removeMeetingEquipment(item.id);
+      setFeedback('הפריט חזר לברירת המחדל של המלאי.');
+    } catch (resetError) {
+      console.error('Meeting equipment reset failed:', resetError);
+      setError('לא ניתן להחזיר את ברירת המחדל כרגע.');
+    }
+  };
+
+  const restoreDefault = async (sourceEquipmentId: string) => {
+    const override = meetingEquipment.find(item => item.meetingId === activeMeetingId && item.sourceEquipmentId === sourceEquipmentId && item.excluded);
+    if (!override) return;
+    await resetDefault(override);
   };
 
   const addRecipient = async (event: React.FormEvent) => {
@@ -200,6 +225,8 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
           </div>
         </header>
 
+        <InventoryManager />
+
         <section aria-labelledby="logistics-meetings-title" className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-xs font-black uppercase tracking-[0.16em] text-brand">היומן של הצוות</p><h2 id="logistics-meetings-title" className="mt-1 text-2xl font-black text-text-main">לאיזה מפגש מתכוננים?</h2></div>
@@ -210,7 +237,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
             <div className="overflow-hidden rounded-3xl border border-border bg-surface shadow-sm">
               {orderedMeetings.map((meeting, index) => {
                 const isNext = meeting.id === nextMeeting?.id;
-                const itemCount = meetingEquipment.filter(item => item.meetingId === meeting.id).length;
+                const itemCount = getMeetingEquipment(meeting.id, equipment, meetingEquipment).items.length;
                 return (
                   <button key={meeting.id} type="button" onClick={() => setActiveMeetingId(meeting.id)} className="group flex w-full items-center gap-4 border-b border-border p-4 text-right transition-colors last:border-b-0 hover:bg-brand/[0.04] sm:gap-5 sm:px-6 sm:py-5">
                     <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-sm font-black ${isNext ? 'bg-brand text-white' : 'bg-surface-alt text-text-muted group-hover:bg-brand/10 group-hover:text-brand'}`}>{String(index + 1).padStart(2, '0')}</div>
@@ -235,7 +262,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
             <div className="rounded-3xl border border-dashed border-border bg-surface p-5 text-center sm:p-12">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand/10 text-brand"><CalendarDays size={26} /></div>
               <h3 className="mt-4 text-lg font-black text-text-main">עוד אין מפגשים בסילבוס</h3>
-              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">אחרי שיוצרים מפגש בסילבוס, הוא יופיע כאן ואפשר יהיה להכין עבורו רשימת ציוד משלו.</p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-text-muted">אחרי שיוצרים מפגש בסילבוס, המלאי הכללי יופיע בו כברירת מחדל ואפשר יהיה להתאים לו רשימה משלו.</p>
               {onOpenSyllabus && <button type="button" onClick={onOpenSyllabus} className="gaming-button mt-5"><CalendarDays size={16} />מעבר לסילבוס</button>}
             </div>
           )}
@@ -270,7 +297,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
 
       <section className="overflow-hidden rounded-3xl border border-border bg-surface shadow-sm" aria-labelledby="equipment-title">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-5 sm:px-7">
-          <div><p className="text-xs font-black uppercase tracking-[0.16em] text-brand">רשימה למפגש הזה בלבד</p><h2 id="equipment-title" className="mt-1 text-2xl font-black text-text-main">מה צריך להביא?</h2></div>
+          <div><p className="text-xs font-black uppercase tracking-[0.16em] text-brand">המלאי הכללי כברירת מחדל · שינויים למפגש הזה בלבד</p><h2 id="equipment-title" className="mt-1 text-2xl font-black text-text-main">מה צריך להביא?</h2></div>
           <button type="button" onClick={() => { resetItemForm(); setShowAddForm(true); }} className="gaming-button"><Plus size={18} />הוספת ציוד</button>
         </div>
 
@@ -281,23 +308,30 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
                 <div><label htmlFor="edit-equipment-name" className="mb-1 block text-xs font-bold text-text-muted">שם הפריט</label><input id="edit-equipment-name" required autoFocus value={name} onChange={event => setName(event.target.value)} className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-main outline-none focus:border-brand" /></div>
                 <div><label htmlFor="edit-equipment-quantity" className="mb-1 block text-xs font-bold text-text-muted">כמות</label><input id="edit-equipment-quantity" type="number" min="1" required value={quantity} onChange={event => setQuantity(Number(event.target.value))} className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-main outline-none focus:border-brand" /></div>
                 <div><label htmlFor="edit-equipment-owner" className="mb-1 block text-xs font-bold text-text-muted">מי מביא?</label><select id="edit-equipment-owner" value={assignedTo} onChange={event => setAssignedTo(event.target.value)} className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text-main outline-none focus:border-brand"><option value="">עדיין לא שובץ</option>{TEAM_MEMBERS.map(member => <option key={member} value={member}>{member}</option>)}</select></div>
-                <div className="flex gap-2"><button type="submit" disabled={saving} className="rounded-xl bg-brand px-3 py-2.5 text-sm font-black text-white disabled:opacity-50"><Check size={17} /></button><button type="button" disabled={saving} onClick={resetItemForm} className="rounded-xl border border-border px-3 py-2.5 text-text-muted"><X size={17} /></button></div>
+                <div className="flex gap-2"><button type="submit" disabled={saving} aria-label={`שמירת ${item.name}`} className="rounded-xl bg-brand px-3 py-2.5 text-sm font-black text-white disabled:opacity-50"><Check size={17} /></button><button type="button" disabled={saving} onClick={resetItemForm} aria-label="ביטול עריכת ציוד" className="rounded-xl border border-border px-3 py-2.5 text-text-muted"><X size={17} /></button></div>
               </form>
             ) : (
               <div key={item.id} className="group grid gap-3 px-4 py-4 transition-colors hover:bg-surface-alt/45 sm:grid-cols-[48px_minmax(0,1.1fr)_minmax(170px,0.8fr)_auto] sm:items-center sm:px-6">
                 <div className="hidden h-10 w-10 place-items-center rounded-xl bg-surface-alt text-xs font-black text-text-muted sm:grid">{String(index + 1).padStart(2, '0')}</div>
-                <div className="min-w-0"><h3 className="truncate font-black text-text-main">{item.name}<span className="mr-2 rounded-lg bg-surface-alt px-2 py-0.5 text-xs font-bold text-text-muted">×{item.quantity}</span></h3><p className="mt-1 text-xs text-text-muted">ציוד למפגש · {activeMeeting.title}</p></div>
+                <div className="min-w-0"><h3 className="truncate font-black text-text-main">{item.name}<span className="mr-2 rounded-lg bg-surface-alt px-2 py-0.5 text-xs font-bold text-text-muted">×{item.quantity}</span></h3><p className="mt-1 text-xs text-text-muted">{item.sourceEquipmentId ? item.id === inventoryItemId(item.sourceEquipmentId) ? 'ברירת מחדל מהמלאי' : 'הותאם למפגש הזה' : 'נוסף למפגש הזה'}</p></div>
                 <div className="flex items-center gap-2 sm:justify-self-start"><span className={`h-2 w-2 rounded-full ${item.assignedTo ? 'bg-green-500' : 'bg-amber-500'}`} /><select aria-label={`מי מביא את ${item.name}`} value={item.assignedTo} onChange={async event => {
-                  try { await updateMeetingEquipment(item.id, { meetingId: item.meetingId, name: item.name, quantity: item.quantity, assignedTo: event.target.value }); setFeedback('האחראי עודכן.'); setError(''); }
+                  try {
+                    const updated = { meetingId: item.meetingId, name: item.name, quantity: item.quantity, assignedTo: event.target.value, ...(item.sourceEquipmentId ? { sourceEquipmentId: item.sourceEquipmentId, inheritName: item.inheritName ?? item.id.startsWith('inventory:'), inheritQuantity: item.inheritQuantity ?? item.id.startsWith('inventory:') } : {}) };
+                    if (item.id.startsWith('inventory:')) await addMeetingEquipment(updated);
+                    else await updateMeetingEquipment(item.id, updated);
+                    setFeedback('האחראי עודכן.'); setError('');
+                  }
                   catch (assignError) { console.error('Equipment assignment failed:', assignError); setError('לא ניתן לעדכן את האחראי.'); }
                 }} className="min-w-36 rounded-xl border border-border bg-surface px-3 py-2 text-sm font-bold text-text-main outline-none transition focus:border-brand"><option value="">בחירת אחראי</option>{TEAM_MEMBERS.map(member => <option key={member} value={member}>{member}</option>)}</select></div>
-                <div className="flex items-center gap-1 sm:justify-self-end"><button type="button" onClick={() => startEditing(item)} aria-label={`עריכת ${item.name}`} className="rounded-xl p-2.5 text-text-muted transition hover:bg-brand/10 hover:text-brand"><Pencil size={17} /></button><button type="button" onClick={() => void deleteItem(item)} aria-label={`הסרת ${item.name}`} className="rounded-xl p-2.5 text-text-muted transition hover:bg-red-500/10 hover:text-red-600"><Trash2 size={17} /></button></div>
+                <div className="flex items-center gap-1 sm:justify-self-end"><button type="button" onClick={() => startEditing(item)} aria-label={`עריכת ${item.name}`} className="rounded-xl p-2.5 text-text-muted transition hover:bg-brand/10 hover:text-brand"><Pencil size={17} /></button>{item.sourceEquipmentId && !item.id.startsWith('inventory:') && <button type="button" onClick={() => void resetDefault(item)} aria-label={`החזרת ${item.name} לברירת המחדל`} title="החזרה לברירת המחדל" className="rounded-xl p-2.5 text-text-muted transition hover:bg-brand/10 hover:text-brand"><RotateCcw size={17} /></button>}<button type="button" onClick={() => void deleteItem(item)} aria-label={`הסרת ${item.name}`} className="rounded-xl p-2.5 text-text-muted transition hover:bg-red-500/10 hover:text-red-600"><Trash2 size={17} /></button></div>
               </div>
             ))}
           </div>
         ) : !showAddForm ? (
           <div className="px-5 py-12 text-center sm:px-8"><div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand/10 text-brand"><PackagePlus size={25} /></div><h3 className="mt-4 text-lg font-black text-text-main">רשימת הציוד עוד ריקה</h3><p className="mt-2 text-sm text-text-muted">הוסיפו פריט ושייכו אותו לחבר או חברת צוות.</p><button type="button" onClick={() => setShowAddForm(true)} className="gaming-button mt-5"><Plus size={17} />הוספת הפריט הראשון</button></div>
         ) : null}
+
+        {hiddenDefaults.length > 0 && <div className="border-t border-border bg-surface-alt/35 px-5 py-4 text-sm sm:px-7"><p className="font-bold text-text-muted">הוסרו מהמפגש הזה</p><div className="mt-2 flex flex-wrap gap-2">{hiddenDefaults.map(item => <button key={item.id} type="button" onClick={() => void restoreDefault(item.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 font-bold text-text-main hover:border-brand hover:text-brand"><RotateCcw size={14} />{item.name} · החזרה</button>)}</div></div>}
 
         {showAddForm && (
           <form onSubmit={saveItem} className="grid gap-3 border-t border-border bg-surface-alt/60 p-4 sm:grid-cols-[minmax(0,1fr)_100px_minmax(160px,0.65fr)_auto] sm:items-end sm:px-6">
@@ -342,7 +376,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
           </div>
         </div>
       </section>
-      <p className="text-center text-xs text-text-muted">{currentUser ? `מתכננים כ־${currentUser}` : 'ההגדרות משותפות לצוות'} · ציוד נשמר בנפרד לכל מפגש</p>
+      <p className="text-center text-xs text-text-muted">{currentUser ? `מתכננים כ־${currentUser}` : 'ההגדרות משותפות לצוות'} · מלאי כללי משותף, התאמות נפרדות לכל מפגש</p>
     </div>
   );
 }
