@@ -8,6 +8,7 @@ import { MeetingEquipment } from '../../types';
 import { TEAM_MEMBERS } from '../../team';
 import InventoryManager from '../InventoryManager';
 import { getMeetingEquipment, inventoryItemId } from '../../lib/logisticsInventory';
+import { findNextMeeting } from '../../lib/nextMeeting';
 
 const formatDate = (value: string) => {
   if (!value) return 'תאריך לא נקבע';
@@ -207,7 +208,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
   };
 
   if (!activeMeeting) {
-    const nextMeeting = orderedMeetings.find(meeting => meeting.date >= new Date().toISOString().slice(0, 10));
+    const nextMeeting = findNextMeeting(orderedMeetings);
     return (
       <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <header className="relative overflow-hidden rounded-[28px] bg-[#251c17] px-4 py-5 text-white shadow-xl sm:px-9 sm:py-10">

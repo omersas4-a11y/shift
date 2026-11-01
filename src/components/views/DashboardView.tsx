@@ -1,8 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useStore } from '../../StoreContext';
+import { findNextMeeting } from '../../lib/nextMeeting';
 
 export default function DashboardView({ onOpenSyllabus }: { onOpenSyllabus: () => void }) {
   const { candidates, requirements, budget, meetings } = useStore();
+  const nextMeeting = findNextMeeting(meetings);
   const pendingCandidates = candidates.filter(candidate => candidate.status === 'pending').length;
   const missingEquipment = requirements.filter(requirement => !requirement.isBrought).length;
   const totalBudget = budget.totalAnnual;
@@ -77,11 +79,11 @@ export default function DashboardView({ onOpenSyllabus }: { onOpenSyllabus: () =
 
         <section className="gaming-card flex min-w-0 flex-col p-4 text-right sm:p-6">
           <h3 className="mb-3 text-lg font-bold text-text-main sm:mb-4 sm:text-xl">המפגש הקרוב</h3>
-          {meetings.length > 0 ? (
+          {nextMeeting ? (
             <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-border bg-surface-alt p-4 text-center sm:rounded-3xl">
-              <div className="mb-2 text-xl font-black text-brand sm:text-2xl">{meetings[0].title}</div>
-              <div className="mb-1 font-bold text-text-main">{meetings[0].date.split('-').reverse().join('/')} ב-{meetings[0].time}</div>
-              <div className="text-sm text-text-muted">{meetings[0].location}</div>
+              <div className="mb-2 text-xl font-black text-brand sm:text-2xl">{nextMeeting.title}</div>
+              <div className="mb-1 font-bold text-text-main">{nextMeeting.date.split('-').reverse().join('/')}{nextMeeting.time && ` ב-${nextMeeting.time}`}</div>
+              <div className="text-sm text-text-muted">{nextMeeting.location}</div>
               <button type="button" onClick={onOpenSyllabus} className="gaming-button mx-auto mt-4 w-full max-w-xs justify-center sm:mt-6">צפה בפרטים</button>
             </div>
           ) : <div className="flex flex-1 items-center justify-center py-8 text-text-muted">אין מפגשים קרובים</div>}
