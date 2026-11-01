@@ -28,6 +28,7 @@ test('sync groups feedback by meeting, retries failed uploads and avoids duplica
     LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
     ScriptApp: { getOAuthToken: () => 'test-token' },
     MimeType: { PLAIN_TEXT: 'text/plain' },
+    console: { error() {} },
     UrlFetchApp: { fetch(url) {
       const path = url.split('/documents/')[1].split('?')[0];
       let body;
@@ -39,8 +40,9 @@ test('sync groups feedback by meeting, retries failed uploads and avoids duplica
   };
   const source = readFileSync(new URL('../docs/feedback-drive-sync.gs', import.meta.url), 'utf8');
   const sync = runInNewContext(`${source}\nsyncFeedbackToDrive`, context);
-  assert.throws(() => sync(), /temporary/);
+  sync();
   assert.equal(properties.has('feedback-revision-a'), false);
+  assert.equal(properties.get('feedback-revision-b'), 'two');
   sync();
   assert.equal(folders.size, 2);
   assert.deepEqual([...folders.values()].map(f => f.files.size), [1, 1]);

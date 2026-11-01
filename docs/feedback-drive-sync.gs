@@ -41,6 +41,7 @@ function syncFeedbackToDrive() {
     const summaries = listDocuments('meetingFeedback');
     for (const summary of summaries) {
       const meetingId = documentId(summary);
+      try {
       const revision = textField(summary, 'driveRevision') || 'legacy';
       const key = `feedback-revision-${meetingId}`;
       if (settings.getProperty(key) === revision) continue;
@@ -69,6 +70,10 @@ function syncFeedbackToDrive() {
         folder.createFile(fileName, contents, MimeType.PLAIN_TEXT);
       }
       settings.setProperty(key, revision);
+      } catch (error) {
+        // A problem with one meeting must not stop exports for the others.
+        console.error(`Feedback export failed for meeting ${meetingId}: ${error.message}`);
+      }
     }
   } finally { lock.releaseLock(); }
 }
