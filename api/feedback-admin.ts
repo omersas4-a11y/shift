@@ -32,6 +32,7 @@ export default async function handler(req: any, res: any) {
             count: count - 1,
             sumRating: Math.max(0, sumRating - rating),
             ratingScale: 5,
+            driveRevision: `deleted-${responseId}`,
           });
         }
         return true;

@@ -41,6 +41,7 @@ export default async function handler(req: any, res: any) {
         count: Number(summary.get('count') || 0) + 1,
         sumRating: Number(summary.get('sumRating') || 0) / (summary.get('ratingScale') === 5 ? 1 : 2) + rating,
         ratingScale: 5,
+        driveRevision: responseRef.id,
       }, { merge: true });
     });
     return res.status(201).json({ ok: true });
