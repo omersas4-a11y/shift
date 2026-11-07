@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/f/:code", "destination": "/index.html" }
+    { "source": "/f/:code", "destination": "/index.html" },
+    { "source": "/hanukkah", "destination": "/index.html" }
   ]
 }

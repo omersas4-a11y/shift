@@ -13,7 +13,7 @@ const getTabName = (tab: string) => {
   switch (tab) {
     case 'logistics': return 'ארסנל וציוד';
     case 'syllabus': return 'סילבוס ומשימות';
-    case 'candidates': return 'מיונים ומועמדים';
+    case 'candidates': return 'סטודנטים ומיונים';
     case 'budget': return 'משאבים ותקציב';
     default: return 'מפקדה';
   }

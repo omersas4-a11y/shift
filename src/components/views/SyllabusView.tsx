@@ -5,6 +5,7 @@ import { MapPin, Clock, Calendar as CalendarIcon, User, Swords, Pencil, Trash2, 
 import { Meeting } from '../../types';
 import { Copy, RefreshCw, Star, X as CloseIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import HanukkahSurvey from '../HanukkahSurvey';
 import JoystickRating from '../JoystickRating';
 
 type FeedbackSummary = { meetingId: string; count: number; sumRating: number };
@@ -211,28 +212,7 @@ export default function SyllabusView() {
     } finally { setSavingStatusId(null); }
   };
 
-  return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="min-w-0">
-          <h2 className="mb-2 flex items-center gap-3 text-2xl font-black uppercase text-text-main sm:text-3xl">
-            <Swords className="shrink-0 text-brand" size={28} />
-            סילבוס
-          </h2>
-          <p className="text-text-muted">לוח הזמנים של המועדון, מפגשים מתוכננים והרצאות.</p>
-        </div>
-        <button className="gaming-button w-full justify-center sm:w-auto" onClick={() => {
-          if (showForm) {
-            resetForm();
-          } else {
-            setShowForm(true);
-          }
-        }}>
-          {showForm ? 'ביטול' : '+ צור מפגש חדש'}
-        </button>
-      </header>
-      
-      {showForm && (
+  const meetingForm = (
         <form onSubmit={handleSubmit} className="gaming-card space-y-4 bg-surface-alt p-4 sm:p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
@@ -279,8 +259,33 @@ export default function SyllabusView() {
           <button type="submit" disabled={isSaving} className="gaming-button w-full mt-4 disabled:opacity-60">
             {isSaving ? 'שומר...' : editingMeetingId ? 'עדכן מפגש' : 'שמור מפגש'}
           </button>
+          {editingMeetingId && <button type="button" onClick={resetForm} className="gaming-button-outline w-full mt-3">ביטול עריכה</button>}
         </form>
-      )}
+  );
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="min-w-0">
+          <h2 className="mb-2 flex items-center gap-3 text-2xl font-black uppercase text-text-main sm:text-3xl">
+            <Swords className="shrink-0 text-brand" size={28} />
+            סילבוס
+          </h2>
+          <p className="text-text-muted">לוח הזמנים של המועדון, מפגשים מתוכננים והרצאות.</p>
+        </div>
+        <button className="gaming-button w-full justify-center sm:w-auto" onClick={() => {
+          if (showForm) {
+            resetForm();
+          } else {
+            setShowForm(true);
+          }
+        }}>
+          {showForm ? 'ביטול' : '+ צור מפגש חדש'}
+        </button>
+      </header>
+      
+      {showForm && !editingMeetingId && meetingForm}
+      <HanukkahSurvey />
 
       {statusError && <p role="alert" className="rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-sm font-bold text-red-600">{statusError}</p>}
       {feedbackNotice && <div role="status" className="fixed left-1/2 top-6 z-[100] w-max max-w-[90vw] -translate-x-1/2 rounded-xl border border-brand/30 bg-surface px-4 py-3 text-sm font-bold text-text-main shadow-lg">{feedbackNotice}</div>}
@@ -290,7 +295,7 @@ export default function SyllabusView() {
             {/* Timeline Node */}
             <div className="absolute -right-[28px] top-4 z-10 h-4 w-4 rounded-full border-4 border-brand bg-bg shadow-[0_0_10px_rgba(255,90,0,0.5)] sm:-right-[41px] sm:h-5 sm:w-5" />
             
-            <div className="gaming-card mr-2 p-4 sm:mr-4 sm:p-6">
+            {editingMeetingId === meeting.id ? <div className="mr-2 sm:mr-4">{meetingForm}</div> : <div className="gaming-card mr-2 p-4 sm:mr-4 sm:p-6">
               <div className="flex flex-col md:flex-row justify-between md:items-start gap-4 mb-4">
                 <div>
                   <div className="text-brand font-bold mb-1 tracking-wider text-sm">
@@ -381,7 +386,7 @@ export default function SyllabusView() {
                   )}
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
         ))}
       </div>

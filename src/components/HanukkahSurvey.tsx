@@ -1,0 +1,31 @@
+import { useState } from 'react';
+import { CalendarDays, ChevronDown, Copy, ExternalLink } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList } from 'recharts';
+import { useStore } from '../StoreContext';
+import { HANUKKAH_DAYS } from './views/HanukkahForm';
+
+export default function HanukkahSurvey() {
+  const { hanukkahResponses } = useStore();
+  const [message, setMessage] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const responses = hanukkahResponses.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const alternate = responses.filter(item => item.preference === 'alternate_day');
+  const extended = responses.filter(item => item.preference === 'extend_semester');
+  const choices = [{ name: 'השלמה בשבוע חנוכה', value: alternate.length, color: '#ff6b2a' }, { name: 'דחייה בשבוע (24.1)', value: extended.length, color: '#8b5cf6' }];
+  const days = HANUKKAH_DAYS.map(day => ({ name: day.label, value: alternate.filter(item => Array.isArray(item.days) && item.days.includes(day.id)).length }));
+  const link = `${window.location.origin}/hanukkah`;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link); setMessage('הקישור הועתק.'); }
+    catch { setMessage('לא ניתן להעתיק אוטומטית; אפשר להעתיק את הכתובת המוצגת.'); }
+  };
+  const winner = alternate.length === extended.length ? 'כרגע יש תיקו' : alternate.length > extended.length ? 'רוב התשובות מעדיפות השלמה בשבוע חנוכה' : 'רוב התשובות מעדיפות דחייה בשבוע';
+  return <section aria-labelledby="hanukkah-title" className="gaming-card space-y-5 p-4 sm:p-6">
+    <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black text-brand">אירוע מיוחד · סקר סטודנטים</p><h2 id="hanukkah-title" className="mt-1 flex items-center gap-2 text-2xl font-black text-text-main"><CalendarDays className="text-brand" size={24} />השלמת מפגש חנוכה</h2><p className="mt-2 text-sm text-text-muted">בחירת מועד השלמה או דחיית הסמסטר בשבוע ל־24.1.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => void copy()} className="gaming-button"><Copy size={16} />העתקת קישור לטופס</button><a href="/hanukkah" target="_blank" rel="noopener noreferrer" className="gaming-button-outline inline-flex items-center gap-2"><ExternalLink size={16} />פתיחת הטופס</a></div></div>
+    <div className="break-all rounded-lg bg-surface-alt px-3 py-2 text-xs text-text-muted" dir="ltr">{link}</div>{message && <p role="status" className="text-sm font-bold text-text-main">{message}</p>}
+    <button type="button" onClick={() => setShowResults(open => !open)} aria-expanded={showResults} aria-controls="hanukkah-results" className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-surface-alt px-4 py-3 text-right font-bold text-text-main hover:border-brand"><span>תוצאות הסקר <span className="mr-2 text-sm font-normal text-text-muted">({responses.length} תשובות)</span></span><span className="flex items-center gap-2 text-sm text-brand">{showResults ? 'סגירת התוצאות' : 'הצגת התוצאות'}<ChevronDown size={18} className={showResults ? 'rotate-180' : ''} /></span></button>
+    {showResults && <div id="hanukkah-results" className="space-y-5">{responses.length === 0 ? <p className="rounded-xl border border-dashed border-border p-5 text-center text-sm text-text-muted">עדיין לא התקבלו תשובות. שתפו את הקישור כדי להתחיל לאסוף העדפות.</p> : <><div className="rounded-xl bg-brand/10 p-4 text-sm font-bold text-text-main">{winner} · {responses.length} תשובות</div><div className="grid gap-4 lg:grid-cols-2">
+      <div className="rounded-xl border border-border bg-surface-alt/40 p-4"><h3 className="font-black text-text-main">מה מעדיפים?</h3><div className="h-40"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={choices.filter(item => item.value > 0)} dataKey="value" nameKey="name" innerRadius="55%" outerRadius="85%" isAnimationActive={false}>{choices.filter(item => item.value > 0).map(item => <Cell key={item.name} fill={item.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div><div className="space-y-2 text-sm">{choices.map(item => <div key={item.name} className="flex items-center gap-2"><span className="h-3 w-3 rounded-sm" style={{ backgroundColor: item.color }} /><span className="flex-1 text-text-main">{item.name}</span><strong>{item.value} ({Math.round(item.value / responses.length * 100)}%)</strong></div>)}</div></div>
+      <div className="rounded-xl border border-border bg-surface-alt/40 p-4"><h3 className="font-black text-text-main">ימים פנויים להשלמה</h3><p className="mt-1 text-xs text-text-muted">ניתן לבחור כמה ימים; מספר הבחירות עשוי להיות גדול ממספר המשיבים.</p>{alternate.length ? <><div dir="ltr" className="mt-3 h-48"><ResponsiveContainer width="100%" height="100%"><BarChart data={days} margin={{ top: 22, right: 8, bottom: 0, left: -20 }}><XAxis dataKey="name" tick={{ fill: 'var(--theme-text-muted)', fontSize: 12 }} /><YAxis allowDecimals={false} tick={{ fill: 'var(--theme-text-muted)', fontSize: 11 }} /><Tooltip /><Bar dataKey="value" name="סטודנטים פנויים" fill="#ff6b2a" radius={[4, 4, 0, 0]}><LabelList dataKey="value" position="top" fill="#ea580c" fontSize={13} fontWeight="bold" /></Bar></BarChart></ResponsiveContainer></div><div className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">{days.map(day => <div key={day.name} className="rounded-lg bg-surface p-2 text-center text-text-main"><span className="block text-text-muted">{day.name}</span><strong>{day.value} פנויים</strong></div>)}</div></> : <p className="mt-8 text-center text-sm text-text-muted">אין עדיין בחירות בימי השלמה.</p>}</div>
+    </div><div><h3 className="mb-3 font-black text-text-main">כל התשובות</h3><ul className="divide-y divide-border rounded-xl border border-border">{responses.map(response => <li key={response.id} className="flex flex-wrap justify-between gap-2 p-3 text-sm"><strong className="text-text-main">{response.name}</strong><span className="text-text-muted">{response.preference === 'extend_semester' ? 'דחיית הסמסטר בשבוע (24.1)' : `השלמה בשבוע חנוכה · ${HANUKKAH_DAYS.filter(day => response.days?.includes(day.id)).map(day => day.label).join(', ')}`}</span></li>)}</ul></div></>}</div>}
+  </section>;
+}

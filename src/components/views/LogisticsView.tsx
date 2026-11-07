@@ -211,17 +211,17 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
     const nextMeeting = findNextMeeting(orderedMeetings);
     return (
       <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <header className="relative overflow-hidden rounded-[28px] bg-[#251c17] px-4 py-5 text-white shadow-xl sm:px-9 sm:py-10">
+        <header className="relative overflow-hidden rounded-[28px] border border-border bg-surface px-4 py-5 text-text-main shadow-sm sm:px-9 sm:py-10">
           <div className="absolute -left-12 -top-20 h-64 w-64 rounded-full bg-brand/30 blur-3xl" aria-hidden="true" />
           <div className="relative flex flex-col gap-7 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-orange-100"><PackagePlus size={14} />תכנון מפגשים · לוגיסטיקה</div>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/10 px-3 py-1.5 text-xs font-bold text-brand"><PackagePlus size={14} />תכנון מפגשים · לוגיסטיקה</div>
               <h1 className="text-3xl font-black tracking-tight sm:text-4xl">כל מפגש, כל הפרטים.</h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-white/65 sm:text-base">בוחרים מפגש מהסילבוס, מחלקים ציוד בין הצוות, ושולחים לכולם סיכום מוכן.</p>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-text-muted sm:text-base">בוחרים מפגש מהסילבוס, מחלקים ציוד בין הצוות, ושולחים לכולם סיכום מוכן.</p>
             </div>
-            <div className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-sm">
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-alt px-4 py-3">
               <div className="grid h-11 w-11 place-items-center rounded-xl bg-brand text-white"><CalendarDays size={22} /></div>
-              <div><div className="text-2xl font-black leading-none">{orderedMeetings.length}</div><div className="mt-1 text-xs text-white/60">מפגשים בסילבוס</div></div>
+              <div><div className="text-2xl font-black leading-none text-text-main">{orderedMeetings.length}</div><div className="mt-1 text-xs text-text-muted">מפגשים בסילבוס</div></div>
             </div>
           </div>
         </header>
@@ -351,7 +351,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
             <h2 id="share-logistics-title" className="mt-1 text-2xl font-black text-text-main">כולם יודעים מה להביא.</h2>
             <p className="mt-2 max-w-lg text-sm leading-6 text-text-muted">ההודעה נוצרת מרשימת הציוד של המפגש ומקובצת לפי מי שאחראי להביא כל פריט.</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <button type="button" onClick={sendWhatsApp} className="inline-flex items-center gap-2 rounded-xl bg-[#20a864] px-4 py-3 text-sm font-black text-white transition hover:bg-[#178d53]"><MessageCircle size={17} />שליחה בוואטסאפ</button>
+              <button type="button" onClick={sendWhatsApp} className="whatsapp-button inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black text-white transition"><MessageCircle size={17} />שליחה בוואטסאפ</button>
               <button type="button" onClick={sendEmail} className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-black text-text-main transition hover:border-brand/50 hover:text-brand"><Mail size={17} />פתיחה ב־Gmail</button>
               <button type="button" onClick={() => void copyMessage()} className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-black text-text-main transition hover:border-brand/50 hover:text-brand"><Copy size={17} />העתקת הודעה</button>
             </div>
@@ -371,7 +371,7 @@ export default function LogisticsView({ onOpenSyllabus }: { onOpenSyllabus?: () 
               </div>
             </details>
           </div>
-          <div className="min-w-0 rounded-2xl border border-border bg-[#fbfaf8] p-4 dark:bg-[#1d1a18] sm:p-5">
+          <div className="min-w-0 rounded-2xl border border-border bg-surface-alt p-4 sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-3"><div className="flex items-center gap-2 text-xs font-black text-text-muted"><MessageCircle size={15} className="text-brand" />תצוגת הודעה</div><span className="rounded-full bg-green-500/10 px-2.5 py-1 text-[10px] font-bold text-green-700 dark:text-green-300">{activeItems.length} פריטים</span></div>
             <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words font-sans text-sm leading-6 text-text-main">{messageText}</pre>
           </div>

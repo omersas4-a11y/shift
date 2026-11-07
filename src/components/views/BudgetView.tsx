@@ -4,6 +4,7 @@ import { useStore } from '../../StoreContext';
 import { Wallet, TrendingDown, Pencil, Check, X, Trash2, ImagePlus, Receipt } from 'lucide-react';
 import { normalizeTeamMember, TEAM_MEMBERS } from '../../team';
 import { blobToDataUrl, compressReceipt } from '../../lib/receiptImage';
+import { sumMoney, formatMoney } from '../../lib/money';
 
 async function uploadReceipt(file: File) {
   const compressed = await compressReceipt(file);
@@ -27,7 +28,7 @@ export default function BudgetView() {
   
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState(0);
+  const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
   const [paidBy, setPaidBy] = useState('');
@@ -46,31 +47,31 @@ export default function BudgetView() {
     setEditBudgetValue(budget.totalAnnual);
   }, [budget.totalAnnual]);
 
-  const totalSpent = budget.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const remaining = budget.totalAnnual - totalSpent;
+  const totalSpent = sumMoney(budget.expenses.map(exp => exp.amount));
+  const remaining = sumMoney([budget.totalAnnual, -totalSpent]);
   const spentPercentage = budget.totalAnnual > 0 ? Math.min((totalSpent / budget.totalAnnual) * 100, 100) : 0;
   const paymentsByMember = TEAM_MEMBERS.map(member => {
     const expenses = budget.expenses.filter(expense => normalizeTeamMember(expense.paidBy) === member);
-    return { member, count: expenses.length, total: expenses.reduce((sum, expense) => sum + expense.amount, 0) };
+    return { member, count: expenses.length, total: sumMoney(expenses.map(expense => expense.amount)) };
   });
   const unassignedExpenses = budget.expenses.filter(expense => !normalizeTeamMember(expense.paidBy));
-  const unassignedTotal = unassignedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const unassignedTotal = sumMoney(unassignedExpenses.map(expense => expense.amount));
   
   // Danger zone if > 85%
   const isDanger = spentPercentage > 85;
 
   const resetExpenseForm = () => {
-    setTitle(''); setAmount(0); setCategory(''); setDate(''); setPaidBy(''); setReceiptFile(null); setReceiptPath(''); setEditingExpenseId(null); setShowForm(false);
+    setTitle(''); setAmount(''); setCategory(''); setDate(''); setPaidBy(''); setReceiptFile(null); setReceiptPath(''); setEditingExpenseId(null); setShowForm(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !category || !date || !paidBy || amount <= 0) return;
+    if (!title || !category || !date || !paidBy || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return;
     setExpenseBusy(true); setExpenseError(''); setExpenseFeedback('');
     let uploadedPath = '';
     try {
       if (receiptFile) uploadedPath = await uploadReceipt(receiptFile);
-      const expense = { title: title.trim(), amount, category: category.trim(), date, paidBy, receiptPath: uploadedPath || receiptPath };
+      const expense = { title: title.trim(), amount: Math.round(Number(amount) * 100) / 100, category: category.trim(), date, paidBy, receiptPath: uploadedPath || receiptPath };
       const previousPath = editingExpenseId ? budget.expenses.find(item => item.id === editingExpenseId)?.receiptPath : undefined;
       if (editingExpenseId) {
         await updateExpense(editingExpenseId, expense);
@@ -93,7 +94,7 @@ export default function BudgetView() {
   const startEditingExpense = (expense: typeof budget.expenses[number]) => {
     setEditingExpenseId(expense.id);
     setTitle(expense.title);
-    setAmount(expense.amount);
+    setAmount(String(expense.amount));
     setCategory(expense.category);
     setDate(expense.date);
     setPaidBy(expense.paidBy || '');
@@ -101,7 +102,6 @@ export default function BudgetView() {
     setReceiptFile(null);
     setShowForm(true);
     setExpenseError(''); setExpenseFeedback('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const confirmDeleteExpense = async () => {
@@ -121,6 +121,47 @@ export default function BudgetView() {
       setExpenseBusy(false);
     }
   };
+
+  const renderExpenseForm = (suffix: string) => (
+        <form onSubmit={handleSubmit} className="gaming-card space-y-4 bg-surface-alt p-4 sm:p-6">
+          <h3 className="text-lg font-black text-text-main">{editingExpenseId ? 'עריכת הוצאה' : 'רישום הוצאה חדשה'}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-text-muted">תיאור ההוצאה</label>
+              <input type="text" required value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-text-muted">סכום (₪)</label>
+              <input type="number" min="0.01" step="0.01" inputMode="decimal" required value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-text-muted">קטגוריה</label>
+              <input type="text" required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" placeholder="למשל: ציוד, אוכל, תוכנה..." />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-text-muted">תאריך</label>
+              <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
+            </div>
+            <label className="space-y-1 text-xs font-bold text-text-muted">מי שילם את ההוצאה
+              <select required value={paidBy} onChange={e => setPaidBy(e.target.value)} className="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-text-main">
+                <option value="">בחרו חבר צוות</option>
+                {TEAM_MEMBERS.map(member => <option key={member} value={member}>{member}</option>)}
+              </select>
+            </label>
+            <div className="space-y-2">
+              <label htmlFor={`expense-receipt-${suffix}`} className="block text-xs font-bold text-text-muted">צילום קבלה (לא חובה)</label>
+              <label htmlFor={`expense-receipt-${suffix}`} className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-brand/60 bg-surface px-3 py-2 text-sm font-bold text-brand hover:bg-brand/5"><ImagePlus size={17} />{receiptFile ? receiptFile.name : 'בחרו תמונה או צלמו קבלה'}</label>
+              <input id={`expense-receipt-${suffix}`} type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="sr-only" />
+              <p className="text-xs text-text-muted">התמונה תוקטן אוטומטית כדי לחסוך מקום.</p>
+              {receiptPath && !receiptFile && <div className="flex flex-wrap items-center gap-3 text-xs font-bold"><a href={`/api/receipt?path=${encodeURIComponent(receiptPath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-brand hover:underline"><Receipt size={15} />צפייה בקבלה הקיימת</a><button type="button" onClick={() => setReceiptPath('')} className="text-red-600 hover:underline">הסר קבלה</button></div>}
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button type="submit" disabled={expenseBusy} className="gaming-button mt-2 w-full justify-center disabled:opacity-60 sm:flex-1">{expenseBusy ? 'שומר…' : editingExpenseId ? 'שמירת שינויים' : 'רשום הוצאה'}</button>
+            {editingExpenseId && <button type="button" onClick={resetExpenseForm} className="gaming-button-outline mt-2 w-full justify-center sm:w-auto">ביטול עריכה</button>}
+          </div>
+        </form>
+  );
 
   return (
     <div className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500 sm:space-y-8">
@@ -142,46 +183,7 @@ export default function BudgetView() {
 
       {(expenseFeedback || expenseError) && <div role={expenseError ? 'alert' : 'status'} className={`fixed left-1/2 top-20 z-[100] flex max-w-[min(92vw,28rem)] -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold shadow-xl ${expenseError ? 'border-red-500/30 bg-surface text-red-700 dark:text-red-300' : 'border-green-500/30 bg-surface text-green-700 dark:text-green-300'}`}><span>{expenseError || expenseFeedback}</span><button type="button" onClick={() => { setExpenseError(''); setExpenseFeedback(''); }} className="rounded-lg p-1" aria-label="סגירת הודעה"><X size={16} /></button></div>}
       
-      {showForm && (
-        <form onSubmit={handleSubmit} className="gaming-card space-y-4 bg-surface-alt p-4 sm:p-6">
-          <h3 className="text-lg font-black text-text-main">{editingExpenseId ? 'עריכת הוצאה' : 'רישום הוצאה חדשה'}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-text-muted">תיאור ההוצאה</label>
-              <input type="text" required value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-text-muted">סכום (₪)</label>
-              <input type="number" min="1" required value={amount} onChange={e => setAmount(parseInt(e.target.value) || 0)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-text-muted">קטגוריה</label>
-              <input type="text" required value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" placeholder="למשל: ציוד, אוכל, תוכנה..." />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-text-muted">תאריך</label>
-              <input type="date" required value={date} onChange={e => setDate(e.target.value)} className="w-full bg-surface border border-border rounded px-3 py-2 text-sm text-text-main" />
-            </div>
-            <label className="space-y-1 text-xs font-bold text-text-muted">מי שילם את ההוצאה
-              <select required value={paidBy} onChange={e => setPaidBy(e.target.value)} className="w-full rounded border border-border bg-surface px-3 py-2 text-sm text-text-main">
-                <option value="">בחרו חבר צוות</option>
-                {TEAM_MEMBERS.map(member => <option key={member} value={member}>{member}</option>)}
-              </select>
-            </label>
-            <div className="space-y-2">
-              <label htmlFor="expense-receipt" className="block text-xs font-bold text-text-muted">צילום קבלה (לא חובה)</label>
-              <label htmlFor="expense-receipt" className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-brand/60 bg-surface px-3 py-2 text-sm font-bold text-brand hover:bg-brand/5"><ImagePlus size={17} />{receiptFile ? receiptFile.name : 'בחרו תמונה או צלמו קבלה'}</label>
-              <input id="expense-receipt" type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} className="sr-only" />
-              <p className="text-xs text-text-muted">התמונה תוקטן אוטומטית כדי לחסוך מקום.</p>
-              {receiptPath && !receiptFile && <div className="flex flex-wrap items-center gap-3 text-xs font-bold"><a href={`/api/receipt?path=${encodeURIComponent(receiptPath)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-brand hover:underline"><Receipt size={15} />צפייה בקבלה הקיימת</a><button type="button" onClick={() => setReceiptPath('')} className="text-red-600 hover:underline">הסר קבלה</button></div>}
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button type="submit" disabled={expenseBusy} className="gaming-button mt-2 w-full justify-center disabled:opacity-60 sm:flex-1">{expenseBusy ? 'שומר…' : editingExpenseId ? 'שמירת שינויים' : 'רשום הוצאה'}</button>
-            {editingExpenseId && <button type="button" onClick={resetExpenseForm} className="gaming-button-outline mt-2 w-full justify-center sm:w-auto">ביטול עריכה</button>}
-          </div>
-        </form>
-      )}
+      {showForm && !editingExpenseId && renderExpenseForm('new')}
 
       {/* Progress / Stats */}
       <div className="gaming-card p-4 sm:p-8">
@@ -234,17 +236,17 @@ export default function BudgetView() {
                 </button>
               </div>
             ) : (
-            <div className="text-2xl font-black text-text-main sm:text-4xl">₪{budget.totalAnnual.toLocaleString()}</div>
+            <div className="text-2xl font-black text-text-main sm:text-4xl">₪{formatMoney(budget.totalAnnual)}</div>
             )}
           </div>
           <div className="space-y-1">
             <div className="text-text-muted font-bold uppercase text-sm">נוצל עד כה</div>
-            <div className="break-words text-xl font-black text-brand sm:text-4xl">₪{totalSpent.toLocaleString()}</div>
+            <div className="break-words text-xl font-black text-brand sm:text-4xl">₪{formatMoney(totalSpent)}</div>
           </div>
           <div className="space-y-1">
             <div className="text-text-muted font-bold uppercase text-sm">יתרה זמינה</div>
             <div className={`break-words text-xl font-black sm:text-4xl ${isDanger ? 'text-red-500' : 'text-green-500'}`}>
-              ₪{remaining.toLocaleString()}
+              ₪{formatMoney(remaining)}
             </div>
           </div>
         </div>
@@ -267,9 +269,9 @@ export default function BudgetView() {
       <section aria-labelledby="payments-by-member-title" className="space-y-4">
         <div><h3 id="payments-by-member-title" className="text-xl font-black text-text-main">כמה כל אחד שילם?</h3><p className="mt-1 text-sm text-text-muted">סכום ההוצאות שנרשמו על שם כל חבר צוות.</p></div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {paymentsByMember.map(({ member, count, total }) => <div key={member} className="gaming-card p-4 sm:p-5"><div className="text-sm font-bold text-text-muted">{member}</div><div className="mt-2 text-2xl font-black text-text-main">₪{total.toLocaleString('he-IL')}</div><div className="mt-1 text-xs text-text-muted">{count} {count === 1 ? 'הוצאה' : 'הוצאות'}</div></div>)}
+          {paymentsByMember.map(({ member, count, total }) => <div key={member} className="gaming-card p-4 sm:p-5"><div className="text-sm font-bold text-text-muted">{member}</div><div className="mt-2 text-2xl font-black text-text-main">₪{formatMoney(total)}</div><div className="mt-1 text-xs text-text-muted">{count} {count === 1 ? 'הוצאה' : 'הוצאות'}</div></div>)}
         </div>
-        {unassignedExpenses.length > 0 && <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-text-main">ללא שיוך לחבר צוות: <strong>₪{unassignedTotal.toLocaleString('he-IL')}</strong> ({unassignedExpenses.length} הוצאות)</p>}
+        {unassignedExpenses.length > 0 && <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-text-main">ללא שיוך לחבר צוות: <strong>₪{formatMoney(unassignedTotal)}</strong> ({unassignedExpenses.length} הוצאות)</p>}
       </section>
 
       {/* Expenses History */}
@@ -279,6 +281,7 @@ export default function BudgetView() {
           {budget.expenses.length === 0 && <div className="gaming-card p-4 text-center text-sm text-text-muted">עדיין אין הוצאות</div>}
           {budget.expenses.map(expense => (
             <article key={expense.id} className="gaming-card p-4">
+              {editingExpenseId === expense.id ? renderExpenseForm('mobile') : <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h4 className="break-words font-bold text-text-main">{expense.title}</h4>
@@ -286,12 +289,13 @@ export default function BudgetView() {
                   <p className="mt-1 text-xs text-text-muted">שולם על ידי: {expense.paidBy || 'לא צוין'}</p>
                   {expense.receiptPath && <a href={`/api/receipt?path=${encodeURIComponent(expense.receiptPath)}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline"><Receipt size={15} />צפייה בקבלה</a>}
                 </div>
-                <strong dir="ltr" className="shrink-0 text-base text-brand">₪{expense.amount.toLocaleString()}</strong>
+                <strong dir="ltr" className="shrink-0 text-base text-brand">₪{formatMoney(expense.amount)}</strong>
               </div>
               <div className="mt-3 flex gap-2 border-t border-border pt-3">
                 <button type="button" onClick={() => startEditingExpense(expense)} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-border px-3 py-2 text-sm font-bold text-text-main"><Pencil size={15} />עריכה</button>
                 <button type="button" onClick={() => setDeleteTargetId(expense.id)} className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-500/30 px-3 py-2 text-sm font-bold text-red-600 dark:text-red-300"><Trash2 size={15} />מחיקה</button>
               </div>
+              </>}
             </article>
           ))}
         </div>
@@ -310,6 +314,7 @@ export default function BudgetView() {
             <tbody className="divide-y divide-border">
               {budget.expenses.map((expense) => (
                 <tr key={expense.id} className="hover:bg-brand/5 transition-colors">
+                  {editingExpenseId === expense.id ? <td colSpan={6} className="p-3">{renderExpenseForm('desktop')}</td> : <>
                   <td className="p-4 text-text-muted">{expense.date}</td>
                   <td className="p-4 font-bold text-text-main">{expense.title}</td>
                   <td className="p-4">
@@ -320,7 +325,7 @@ export default function BudgetView() {
                   <td className="p-4 text-sm text-text-muted">{expense.paidBy || 'לא צוין'}</td>
                   <td className="p-4 text-brand font-bold flex items-center gap-1">
                     <TrendingDown size={14} />
-                    ₪{expense.amount.toLocaleString()}
+                    ₪{formatMoney(expense.amount)}
                   </td>
                   <td className="p-3">
                     <div className="flex items-center gap-1">
@@ -329,6 +334,7 @@ export default function BudgetView() {
                       <button type="button" onClick={() => setDeleteTargetId(expense.id)} aria-label={`מחיקת ההוצאה ${expense.title}`} title="מחיקה" className="rounded-lg p-2 text-text-muted transition hover:bg-red-500/10 hover:text-red-600"><Trash2 size={17} /></button>
                     </div>
                   </td>
+                  </>}
                 </tr>
               ))}
             </tbody>

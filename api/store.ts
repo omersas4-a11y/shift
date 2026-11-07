@@ -9,7 +9,7 @@ const getSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
   const snapshot = await syncVersionDocument(db).get();
   return Number(snapshot.get('version') ?? 0);
 };
-const bumpSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
+export const bumpSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
   try {
     await syncVersionDocument(db).set({ version: FieldValue.increment(1) }, { merge: true });
   } catch (error) {
@@ -20,6 +20,8 @@ const bumpSyncVersion = async (db: ReturnType<typeof getDatabase>) => {
 const meetingEquipmentCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewMeetingEquipment' : 'meetingEquipment');
 const meetingsCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewMeetings' : 'meetings');
 const activityCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewActivityEvents' : 'activityEvents');
+const attendanceCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewAttendance' : 'attendance');
+export const hanukkahCollection = (db: ReturnType<typeof getDatabase>) => db.collection(isPreview() ? 'previewHanukkahResponses' : 'hanukkahResponses');
 const logisticsSettingsDocument = (db: ReturnType<typeof getDatabase>) => db.collection('settings').doc(isPreview() ? 'logistics-preview' : 'logistics');
 const previewCollections: Record<string, string> = {
   equipment: 'previewEquipment',
@@ -91,7 +93,7 @@ async function readStore(db: ReturnType<typeof getDatabase>) {
   await Promise.all([ensurePreviewMeetings(db), ensurePreviewBudget(db), ensurePreviewBaseData(db)]);
   // Read the marker first so a write during the collection queries is seen by the next poll.
   const syncVersion = await getSyncVersion(db);
-  const [equipment, meetingEquipment, requirements, meetings, candidates, chatMessages, budget, logisticsSettings, activityEvents] = await Promise.all([
+  const [equipment, meetingEquipment, requirements, meetings, candidates, chatMessages, budget, logisticsSettings, activityEvents, attendance, hanukkahResponses] = await Promise.all([
     collectionFor(db, 'equipment').get(),
     meetingEquipmentCollection(db).get(),
     collectionFor(db, 'requirements').get(),
@@ -101,6 +103,8 @@ async function readStore(db: ReturnType<typeof getDatabase>) {
     budgetDocument(db).get(),
     logisticsSettingsDocument(db).get(),
     activityCollection(db).orderBy('createdAt', 'desc').limit(40).get(),
+    attendanceCollection(db).get(),
+    hanukkahCollection(db).get(),
   ]);
   return {
     equipment: equipment.docs.map(item => ({ id: item.id, ...item.data() })),
@@ -109,6 +113,8 @@ async function readStore(db: ReturnType<typeof getDatabase>) {
     requirements: requirements.docs.map(item => ({ id: item.id, ...item.data() })),
     meetings: meetings.docs.map(item => ({ id: item.id, ...item.data() })),
     activityEvents: activityEvents.docs.map(item => ({ id: item.id, ...item.data() })),
+    attendance: attendance.docs.map(item => ({ id: item.id, ...item.data() })),
+    hanukkahResponses: hanukkahResponses.docs.map(item => ({ id: item.id, ...item.data() })),
     candidates: candidates.docs.map(item => ({ id: item.id, ...item.data() })),
     chatMessages: chatMessages.docs.map(item => ({ id: item.id, ...item.data() })),
     budget: budget.exists ? budget.data() : { totalAnnual: 5000, expenses: [] },
@@ -164,6 +170,29 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
   if (/^(equipment\.|requirement\.|candidate\.|chat\.)/.test(action)) await ensurePreviewBaseData(db);
   let deletedCount = 0;
   switch (action) {
+    case 'attendance.update': {
+      const candidateId = id(payload.candidateId);
+      const meetingId = id(payload.meetingId);
+      const changes = payload.changes;
+      if (!/^[A-Za-z0-9_-]{1,100}$/.test(candidateId) || !/^[A-Za-z0-9_-]{1,100}$/.test(meetingId) || !changes || typeof changes !== 'object') throw new Error('Invalid attendance');
+      const update: Record<string, unknown> = { candidateId, meetingId };
+      if ('status' in changes) {
+        if (!['', 'present', 'absent'].includes(changes.status)) throw new Error('Invalid attendance status');
+        update.status = changes.status;
+      }
+      if ('note' in changes) {
+        if (typeof changes.note !== 'string' || changes.note.length > 2000) throw new Error('Invalid attendance note');
+        update.note = changes.note;
+      }
+      if (!('status' in update) && !('note' in update)) throw new Error('Empty attendance update');
+      const ref = attendanceCollection(db).doc(`${candidateId}--${meetingId}`);
+      await db.runTransaction(async tx => {
+        const [candidate, meeting] = await Promise.all([tx.get(collection('candidates').doc(candidateId)), tx.get(meetingsCollection(db).doc(meetingId))]);
+        if (!candidate.exists || candidate.get('status') !== 'accepted' || !meeting.exists) throw new Error('Student or meeting not found');
+        tx.set(ref, update, { merge: true });
+      });
+      break;
+    }
     case 'equipment.add': {
       if (typeof payload.name !== 'string' || !payload.name.trim() || !Number.isInteger(payload.quantity) || payload.quantity < 1) throw new Error('Invalid inventory item');
       const ref = collection('equipment').doc();
@@ -265,6 +294,10 @@ async function writeStore(db: ReturnType<typeof getDatabase>, action: string, pa
     case 'budget.expense.update':
     case 'budget.expense.remove':
     case 'budget.total': {
+      if (action === 'budget.expense' || action === 'budget.expense.update') {
+        const amount = payload.expense?.amount;
+        if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || Math.abs(amount * 100 - Math.round(amount * 100)) > 1e-7) throw new Error('Invalid expense amount');
+      }
       const ref = budgetDocument(db);
       await db.runTransaction(async tx => {
         const snapshot = await tx.get(ref);

@@ -385,3 +385,277 @@ body {
 @media (max-width: 720px) {
   .pixel-particle:nth-child(2n) { display: none; }
 }
+
+/* A light arcade world: crisp pixel details, warm SHIFT orange and a little violet. */
+:root {
+  --theme-bg: #fffefd;
+  --theme-surface: #ffffff;
+  --theme-surface-alt: #f7f4fb;
+  --theme-border: #ded7e9;
+  --theme-text-main: #272136;
+  --theme-text-muted: #655c70;
+}
+.shift-shell::before {
+  opacity: 1;
+  background-color: var(--theme-bg);
+  background-image: linear-gradient(rgba(126, 97, 166, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(126, 97, 166, .045) 1px, transparent 1px), linear-gradient(180deg, rgba(250, 240, 255, .75), transparent 42%);
+  background-size: 32px 32px, 32px 32px, auto;
+  animation: none;
+}
+:root.dark .shift-shell::before { background-color: var(--theme-bg); background-image: linear-gradient(rgba(175, 148, 211, .06) 1px, transparent 1px), linear-gradient(90deg, rgba(175, 148, 211, .06) 1px, transparent 1px); background-size: 32px 32px; }
+.pixel-sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.pixel-cloud { position: absolute; left: -110px; width: 88px; height: 40px; background: url('/decor/pixel-cloud.svg') center / contain no-repeat; image-rendering: pixelated; opacity: .72; animation: cloud-cross var(--cloud-duration) linear infinite; animation-delay: var(--cloud-delay); }
+.pixel-cloud--one { top: 8%; --cloud-duration: 62s; --cloud-delay: -12s; }
+.pixel-cloud--two { top: 27%; width: 65px; height: 30px; --cloud-duration: 80s; --cloud-delay: -48s; opacity: .49; }
+.pixel-cloud--three { top: 63%; width: 73px; height: 33px; --cloud-duration: 73s; --cloud-delay: -28s; opacity: .38; }
+@keyframes cloud-cross { from { transform: translateX(0); } to { transform: translateX(calc(100vw + 220px)); } }
+.pixel-sky__spark { position: absolute; color: #d7c1ed; font-size: 19px; animation: pixel-twinkle 3s steps(2, end) infinite; }
+.pixel-sky__spark--one { top: 17%; left: 12%; }
+.pixel-sky__spark--two { top: 42%; right: 22%; color: #ffb793; animation-delay: -1s; }
+.pixel-sky__spark--three { bottom: 12%; left: 30%; color: #a9dcd9; animation-delay: -2s; }
+@keyframes pixel-twinkle { 50% { opacity: .25; } }
+.character-select { position: relative; isolation: isolate; overflow: hidden; background-color: var(--theme-bg); background-image: linear-gradient(rgba(126,97,166,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(126,97,166,.05) 1px, transparent 1px); background-size: 32px 32px; }
+.character-select__content { position: relative; z-index: 1; }
+.character-select__eyebrow { color: #8c62a8; letter-spacing: .05em; }
+.character-choice__action { color: #76667f; }
+.shift-sidebar { border-color: #d8cee3; box-shadow: -4px 0 0 rgba(76, 46, 92, .06); }
+.shift-sidebar nav button { border-radius: 5px; }
+.shift-sidebar nav button[aria-current="page"] { background: #ff671f; border: 2px solid #7b3225; border-radius: 5px; box-shadow: 4px 4px 0 #7b3225, inset 0 3px 0 rgba(255,255,255,.34); transform: none; }
+.shift-sidebar nav button:not([aria-current="page"]):hover { box-shadow: inset -4px 0 #b987da; background: #f8f1fc; }
+.gaming-card { border: 2px solid #cbbdd9; border-radius: 7px; box-shadow: 4px 4px 0 #e5dcee, inset 0 3px 0 #fff; }
+.gaming-card:hover { border-color: #a786be; box-shadow: 4px 5px 0 #ddcce9; transform: translateY(-2px); background-image: none; }
+.gaming-card::before { display: none; }
+.gaming-card::after { top: 8px; left: 8px; width: 18px; height: 18px; opacity: .7; background: linear-gradient(#ffae89,#ffae89) 0 0 / 5px 5px no-repeat, linear-gradient(#c5a8df,#c5a8df) 6px 6px / 5px 5px no-repeat, linear-gradient(#a6dad6,#a6dad6) 12px 12px / 5px 5px no-repeat; }
+.candidate-card::after { content: none; }
+.pixel-column { border-radius: 7px; box-shadow: 4px 4px 0 #e6dfee; background-image: linear-gradient(180deg, rgba(246,239,253,.9), rgba(255,255,255,.7)); }
+.gaming-button, .gaming-button-outline { border-radius: 5px; border-width: 2px; font-weight: 900; box-shadow: 4px 4px 0 #4e375e; }
+.gaming-button { background: #ff6824; border-color: #923a28; box-shadow: 4px 4px 0 #923a28, inset 0 3px 0 rgba(255,255,255,.3); }
+.gaming-button:hover { background: #f45517; box-shadow: 2px 2px 0 #923a28, inset 0 3px 0 rgba(255,255,255,.3); }
+.gaming-button-outline { background: var(--theme-surface); border-color: #75627f; }
+.gaming-button-outline:hover { box-shadow: 2px 2px 0 #75627f; }
+:root.dark .gaming-card { border-color: #63536e; box-shadow: 4px 4px 0 #191221; }
+:root.dark .gaming-card:hover { border-color: #bd8cd9; box-shadow: 4px 5px 0 #191221; }
+:root.dark .pixel-column { background-image: linear-gradient(180deg, #34283d, #27272a); box-shadow: 4px 4px 0 #191221; }
+:root.dark .shift-sidebar nav button:not([aria-current="page"]):hover { background: #3b2f42; }
+@media (prefers-reduced-motion: reduce) { .pixel-cloud, .pixel-sky__spark { animation: none; } .pixel-cloud--one { left: 8%; } .pixel-cloud--two { left: 68%; } .pixel-cloud--three { left: 35%; } }
+
+/* Retro arcade controls and a quiet, open pixel landscape. */
+.shift-shell::before, .character-select {
+  background-color: var(--theme-bg);
+  background-image: url('/decor/pixel-landscape.svg'), linear-gradient(180deg, #fff 0%, #fff 66%, #fffbfc 100%);
+  background-size: 100% min(42vh, 400px), auto;
+  background-repeat: no-repeat;
+  background-position: center bottom, center;
+}
+:root.dark .shift-shell::before {
+  background-color: #18151f;
+  background-image: url('/decor/pixel-landscape.svg'), linear-gradient(180deg, #18151f, #282035);
+  background-size: 100% min(42vh, 400px), auto;
+  background-repeat: no-repeat;
+  background-position: center bottom, center;
+}
+.pixel-cloud--one { top: 9%; opacity: .14; }
+.pixel-cloud--two { top: 27%; opacity: .10; }
+.pixel-cloud--three { top: 63%; opacity: .08; }
+.pixel-sky__spark { opacity: .38; }
+.shift-main h1, .shift-main h2, .shift-main h3, .shift-main p, .character-select h1, .character-select__intro, .character-select__eyebrow, .character-choice__name, .character-choice__action {
+  text-shadow: 0 0 5px var(--theme-bg), 0 0 10px var(--theme-bg), 0 0 15px var(--theme-bg);
+}
+.character-select__logo, .shift-main img[alt="Shift Logo"] { filter: drop-shadow(0 0 6px var(--theme-bg)) drop-shadow(0 0 6px var(--theme-bg)); }
+.gaming-button, .gaming-button-outline, .shift-sidebar nav button, nav[aria-label="ניווט ראשי"] button {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  font-weight: 700;
+}
+.gaming-button, .gaming-button-outline, .shift-sidebar nav button[aria-current="page"] {
+  border: 3px solid #3a2532;
+  border-radius: 4px;
+  background-image: linear-gradient(to bottom, #ffb483 0 3px, #ff793d 3px calc(100% - 11px), #ec5626 calc(100% - 11px) calc(100% - 6px), #b83d1d calc(100% - 6px));
+  background-color: #ff793d;
+  color: #fff;
+  box-shadow: 0 3px 0 #3a2532, inset 3px 0 #ffb483, inset -3px 0 #d84c24;
+  text-shadow: 1px 2px 0 #a93d20;
+  font-size: 18px;
+  line-height: 1.25;
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+.gaming-button:hover, .shift-sidebar nav button[aria-current="page"]:hover { background-color: #ff793d; filter: brightness(1.05); transform: translateY(2px); box-shadow: 0 1px 0 #3a2532, inset 3px 0 #ffb483, inset -3px 0 #d84c24; }
+.gaming-button:active, .shift-sidebar nav button[aria-current="page"]:active { transform: translateY(3px); box-shadow: inset 3px 0 #ffb483, inset -3px 0 #d84c24; }
+.gaming-button:disabled { filter: grayscale(.45); opacity: .6; }
+.gaming-button-outline { background-image: linear-gradient(to bottom, #fff 0 3px, #fffaf7 3px calc(100% - 10px), #f6d8cb calc(100% - 10px) calc(100% - 5px), #ddb1a3 calc(100% - 5px)); color: #3a2532; text-shadow: none; box-shadow: 0 3px 0 #3a2532, inset 3px 0 #fff, inset -3px 0 #e6c3b8; }
+.gaming-button-outline:hover { transform: translateY(2px); box-shadow: 0 1px 0 #3a2532, inset 3px 0 #fff, inset -3px 0 #e6c3b8; }
+.shift-sidebar nav button:not([aria-current="page"]) { font-size: 18px; }
+.shift-sidebar nav button[aria-current="page"] { border: 3px solid #3a2532; }
+.shift-sidebar nav button:not([aria-current="page"]):hover { background: #fff4ee; box-shadow: inset -4px 0 #ffae83; }
+nav[aria-label="ניווט ראשי"] button { font-size: 12px; }
+:root.dark .gaming-button, :root.dark .shift-sidebar nav button[aria-current="page"] { border-color: #160f1b; background-image: linear-gradient(to bottom, #ffb483 0 3px, #ff793d 3px calc(100% - 11px), #ec5626 calc(100% - 11px) calc(100% - 6px), #b83d1d calc(100% - 6px)); box-shadow: 0 3px 0 #160f1b, inset 3px 0 #ffb483, inset -3px 0 #d84c24; }
+@media (max-width: 767px) { .gaming-button, .gaming-button-outline { font-size: 16px; } .shift-shell::before, .character-select { background-size: auto 32vh, auto; } }
+/* The compact chat control keeps its orange icon legible on mobile. */
+.shift-main .gaming-button[title="פתח צ'אט"] { background: var(--theme-surface) !important; border-color: #3a2532; box-shadow: 0 3px 0 #3a2532, inset 0 -4px #f2d8ce; text-shadow: none; }
+.shift-main .gaming-button[title="פתח צ'אט"]:hover { background: #fff4ee !important; }
+
+/* Readable Hebrew type and contrast for the dark theme. */
+.gaming-button, .gaming-button-outline { font-size: 16px; font-weight: 700; }
+.shift-sidebar nav button:not([aria-current="page"]), .shift-sidebar nav button[aria-current="page"] { font-size: 16px; font-weight: 700; }
+nav[aria-label="ניווט ראשי"] button { font-size: 10px; font-weight: 700; }
+:root.dark .gaming-button-outline {
+  background: linear-gradient(to bottom, #514356 0 3px, #352b39 3px calc(100% - 8px), #211b26 calc(100% - 8px));
+  color: #f4f4f5;
+  border-color: #b89dbd;
+  box-shadow: 0 3px 0 #100c13, inset 3px 0 #514356, inset -3px 0 #211b26;
+}
+:root.dark .shift-main .gaming-button[title="פתח צ'אט"] { background: #352b39 !important; border-color: #b89dbd; box-shadow: 0 3px 0 #100c13; }
+
+/* The arcade world is a backdrop, with clear space behind the interface. */
+.shift-shell::before, .character-select {
+  background-color: #fff;
+  background-image: url('/decor/arcade-world.png');
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+:root.dark .shift-shell::before {
+  background-color: #fff;
+  background-image: url('/decor/arcade-world.png');
+  background-position: center bottom;
+  background-size: 100% 100%;
+  filter: invert(1) hue-rotate(180deg);
+  opacity: .46;
+}
+:root.dark .character-select {
+  background-image: linear-gradient(rgba(24, 21, 31, .94), rgba(24, 21, 31, .88)), url('/decor/arcade-world.png');
+  background-size: 100% 100%;
+}
+@media (max-width: 767px) {
+  .shift-shell::before, .character-select, :root.dark .shift-shell::before, :root.dark .character-select { background-size: 100% auto; }
+}
+:root.dark .shift-main input, :root.dark .shift-main select, :root.dark .shift-main textarea { color-scheme: dark; }
+
+/* Separate pixel-art scenery and clouds preserve their colors in both themes. */
+.shift-shell::before, .character-select {
+  background-color: var(--theme-bg);
+  background-image: url('/decor/arcade-world-transparent.png');
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: 100% 100%;
+}
+:root.dark .shift-shell::before, :root.dark .character-select {
+  background-color: #18151f;
+  background-image: url('/decor/arcade-world-transparent.png');
+  background-position: center bottom;
+  background-size: 100% 100%;
+  filter: none;
+  opacity: 1;
+}
+.pixel-cloud { background-image: url('/decor/arcade-cloud.png'); background-size: 175% auto; }
+.pixel-cloud--one { opacity: .34; }
+.pixel-cloud--two { opacity: .25; }
+.pixel-cloud--three { opacity: .20; }
+:root.dark .pixel-cloud--one { opacity: .40; }
+:root.dark .pixel-cloud--two { opacity: .30; }
+:root.dark .pixel-cloud--three { opacity: .25; }
+@media (max-width: 767px) {
+  .shift-shell::before, .character-select, :root.dark .shift-shell::before, :root.dark .character-select { background-size: 100% auto; }
+}
+
+
+/* Animated scenery stays inside the main canvas, clear of opaque sidebars. */
+.pixel-world { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.pixel-world__tree, .pixel-world__heart, .pixel-world__gem { position: absolute; display: block; background-repeat: no-repeat; background-position: center bottom; background-size: contain; image-rendering: pixelated; }
+.pixel-world__tree { bottom: 0; width: clamp(120px, 13vw, 205px); height: clamp(180px, 27vh, 265px); background-image: url('/decor/arcade-tree.png'); background-position: center calc(100% + 28px); --leaf-fall: 165px; }
+.pixel-world__tree--left { left: 0; }
+.pixel-world__tree--right { right: 0; transform: scaleX(-1); }
+.pixel-world::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: url('/decor/arcade-ground.png') center bottom / 100% 100% no-repeat; image-rendering: pixelated; }
+.pixel-world__heart, .pixel-world__gem { z-index: 2; animation: arcade-float 2.8s steps(8, end) infinite; }
+.pixel-world__heart { background-image: url('/decor/arcade-heart.svg'); width: 35px; height: 32px; }
+.pixel-world__heart--one { bottom: 88px; left: 14%; }
+.pixel-world__heart--two { bottom: 48px; left: 19%; width: 27px; height: 25px; animation-delay: -.9s; }
+.pixel-world__gem { background-image: url('/decor/arcade-gem.svg'); width: 32px; height: 26px; }
+.pixel-world__gem--one { bottom: 94px; right: 14%; animation-delay: -.4s; }
+.pixel-world__gem--two { bottom: 55px; right: 18%; width: 27px; height: 22px; animation-delay: -1.4s; }
+.pixel-world__gem--three { bottom: 38px; right: 22%; width: 22px; height: 19px; animation-delay: -2s; }
+@keyframes arcade-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-11px); } }
+.pixel-world__leaf { position: absolute; width: 5px; height: 5px; background: #70c76a; box-shadow: 5px 0 #277c4f, 0 5px #36a567, 5px 5px #a4dd6c; animation: arcade-leaf 5.6s steps(8, end) infinite; }
+.pixel-world__leaf--0 { left: 30%; top: 24%; animation-delay: -1s; }
+.pixel-world__leaf--1 { left: 48%; top: 20%; animation-delay: -3.5s; }
+.pixel-world__leaf--2 { left: 65%; top: 32%; animation-delay: -2.2s; }
+.pixel-world__leaf--3 { left: 40%; top: 36%; animation-delay: -4.8s; }
+.pixel-world__tree--right .pixel-world__leaf { animation-duration: 6.3s; }
+@keyframes arcade-leaf {
+  0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+  12% { transform: translate(3px, calc(var(--leaf-fall) * .12)) rotate(0); opacity: 1; }
+  28% { transform: translate(-4px, calc(var(--leaf-fall) * .28)) rotate(90deg); }
+  45% { transform: translate(6px, calc(var(--leaf-fall) * .45)) rotate(180deg); }
+  62% { transform: translate(-4px, calc(var(--leaf-fall) * .62)) rotate(270deg); }
+  80% { transform: translate(5px, calc(var(--leaf-fall) * .8)) rotate(360deg); opacity: 1; }
+  100% { transform: translate(0, var(--leaf-fall)) rotate(450deg); opacity: 0; }
+}
+@media (max-width: 767px) {
+  .pixel-world__tree { width: 76px; height: 120px; background-position: center calc(100% + 16px); --leaf-fall: 74px; }
+  .pixel-world__heart { width: 23px; height: 21px; bottom: 76px; }
+  .pixel-world__heart--one { left: 18%; }
+  .pixel-world__heart--two { left: 28%; bottom: 48px; }
+  .pixel-world__gem { width: 23px; height: 19px; }
+  .pixel-world__gem--one { right: 18%; bottom: 76px; }
+  .pixel-world__gem--two { right: 28%; bottom: 48px; }
+  .pixel-world__gem--three { right: 37%; bottom: 31px; }
+  .pixel-world::after { background-size: 100% auto; }
+  .pixel-world__leaf { width: 3px; height: 3px; box-shadow: 3px 0 #277c4f, 0 3px #36a567, 3px 3px #a4dd6c; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pixel-world__heart, .pixel-world__gem { animation: none; }
+  .pixel-world__leaf { display: none; }
+}
+.shift-shell::before, .character-select, :root.dark .shift-shell::before, :root.dark .character-select { background-image: url('/decor/arcade-ground.png'); }
+@media (min-width: 1280px) {
+  .shift-main > .shift-content { padding-inline: clamp(100px, 8.5vw, 150px); }
+}
+.mobile-pixel-world { display: none; }
+@media (max-width: 767px) {
+  .shift-main > .pixel-world { display: none; }
+  .mobile-pixel-world { display: block; position: relative; height: 135px; margin: 30px -16px -20px; overflow: hidden; background: url('/decor/arcade-ground.png') center bottom / 100% auto no-repeat; }
+}
+@media (max-width: 767px) {
+  .mobile-pixel-world .pixel-world__tree--left { left: 55px; }
+  .mobile-pixel-world .pixel-world__heart--one { left: 34%; }
+  .mobile-pixel-world .pixel-world__heart--two { left: 43%; }
+}
+
+/* Keep the mobile scene compact and grounded within the page, without
+   repeating the landscape behind scrolling content. */
+@media (max-width: 767px) {
+  .shift-shell::before, :root.dark .shift-shell::before { background-image: none; }
+  .character-select, :root.dark .character-select { background-image: none; }
+  .pixel-cloud--one { width: 64px; height: 29px; }
+  .pixel-cloud--two { width: 46px; height: 22px; }
+  .pixel-cloud--three { width: 52px; height: 24px; }
+  .mobile-pixel-world { height: 112px; margin: 12px -16px -20px; background: none; }
+  .mobile-pixel-world .pixel-world__tree { width: 68px; height: 105px; background-position: center calc(100% + 14px); --leaf-fall: 62px; }
+  .mobile-pixel-world .pixel-world__tree--left { left: 52px; }
+  .mobile-pixel-world .pixel-world__tree--right { right: 8px; }
+  .mobile-pixel-world .pixel-world__heart, .mobile-pixel-world .pixel-world__gem { width: 19px; height: 18px; animation-duration: 3.6s; }
+  .mobile-pixel-world .pixel-world__heart--one { left: 35%; bottom: 47px; }
+  .mobile-pixel-world .pixel-world__heart--two { left: 43%; bottom: 27px; }
+  .mobile-pixel-world .pixel-world__gem--one { right: 27%; bottom: 46px; }
+  .mobile-pixel-world .pixel-world__gem--two { right: 36%; bottom: 26px; }
+  .mobile-pixel-world .pixel-world__gem--three { display: none; }
+  .mobile-pixel-world .pixel-world__leaf--2, .mobile-pixel-world .pixel-world__leaf--3 { display: none; }
+}
+
+/* Keep scenery anchored to the viewport while the content scrolls over it. */
+.desktop-pixel-world { position: sticky; top: 0; height: 0; z-index: 0; pointer-events: none; }
+.desktop-pixel-world > .pixel-world { top: 0; bottom: auto; height: 100dvh; }
+@media (max-width: 767px) {
+  .desktop-pixel-world { display: none; }
+  .mobile-pixel-world {
+    display: block; position: fixed; z-index: 0; left: 0; right: 0;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    height: 112px; margin: 0; overflow: hidden; pointer-events: none; background: none;
+  }
+}
+
+/* High-contrast green labels in both themes, including status badges. */
+.text-green-500, .text-green-700, .text-emerald-700 { color: #166534; }
+:root.dark .text-green-500, :root.dark .text-green-700, :root.dark .text-emerald-700 { color: #86efac; }
+.whatsapp-button { background-color: #087341; color: #fff; }
+.whatsapp-button:hover { background-color: #075c35; }

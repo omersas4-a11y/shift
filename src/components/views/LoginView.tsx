@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { useStore } from '../../StoreContext';
 import { TEAM_CHARACTERS } from '../../team';
+import PixelSky from '../PixelSky';
+import PixelWorld from '../PixelWorld';
 import './LoginView.css';
 
 export default function LoginView() {
@@ -8,6 +10,8 @@ export default function LoginView() {
 
   return (
     <main className="character-select" dir="rtl" aria-labelledby="character-heading">
+      <PixelSky />
+      <PixelWorld />
       <div className="character-select__content">
         <img src="/logos/shift logo.png" alt="SHIFT" className="character-select__logo" />
         <div className="character-select__eyebrow" aria-hidden="true"><span /> הצוות של SHIFT <span /></div>

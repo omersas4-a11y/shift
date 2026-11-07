@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatPanel from './components/ChatPanel';
+import PixelSky from './components/PixelSky';
+import PixelWorld from './components/PixelWorld';
 import LogisticsView from './components/views/LogisticsView';
 import SyllabusView from './components/views/SyllabusView';
 import BudgetView from './components/views/BudgetView';
 import DashboardView from './components/views/DashboardView';
 import LoginView from './components/views/LoginView';
-import CandidatesView from './components/views/CandidatesView';
+import StudentsView from './components/views/StudentsView';
 import { MessageSquare, RefreshCw, WifiOff } from 'lucide-react';
 import { useStore } from './StoreContext';
 import { resolveCandidateMessageTarget } from './lib/activityNavigation';
@@ -54,7 +56,7 @@ export default function App() {
       case 'budget':
         return <BudgetView />;
       case 'candidates':
-        return <CandidatesView target={candidateTarget} />;
+        return <StudentsView target={candidateTarget} />;
       case 'dashboard':
       default:
         return <DashboardView onOpenSyllabus={() => selectTab('syllabus')} />;
@@ -64,20 +66,14 @@ export default function App() {
   return (
     <div className="shift-shell flex h-[100dvh] min-h-[100svh] w-full flex-col overflow-hidden bg-bg font-sans text-text-main md:flex-row">
       <div className="shift-pixel-field" aria-hidden="true">
-        <span className="pixel-particle pixel-sprite--heart" />
-        <span className="pixel-particle pixel-sprite--coin" />
-        <span className="pixel-particle pixel-sprite--star" />
-        <span className="pixel-particle pixel-sprite--controller" />
-        <span className="pixel-particle pixel-sprite--bolt" />
+        <PixelSky />
       </div>
       <Sidebar activeTab={activeTab} setActiveTab={selectTab} isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} onSelectActivity={selectActivity} />
+      {hasLoaded && <div className="mobile-pixel-world" aria-hidden="true"><PixelWorld /></div>}
       
       <main className="shift-main relative z-[1] min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto pb-[env(safe-area-inset-bottom)] md:h-full">
-        {/* Background glow effects */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[120px] pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-brand/5 rounded-full blur-[120px] pointer-events-none"></div>
-        
-        <div className="relative z-10 min-h-full px-4 pb-28 pt-5 sm:px-6 md:p-8">
+        <div className="desktop-pixel-world" aria-hidden="true"><PixelWorld /></div>
+        <div className="shift-content relative z-10 min-h-full px-4 pb-28 pt-5 sm:px-6 md:p-8">
           {syncStatus === 'error' && (
             <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm font-bold text-text-main">
               <WifiOff size={19} className="shrink-0 text-amber-600" aria-hidden="true" />

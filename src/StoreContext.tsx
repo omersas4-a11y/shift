@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { ActivityEvent, Budget, Candidate, Equipment, Expense, Meeting, NextMeetingRequirement, ChatMessage, MeetingEquipment } from './types';
+import { ActivityEvent, AttendanceRecord, HanukkahResponse, Budget, Candidate, Equipment, Expense, Meeting, NextMeetingRequirement, ChatMessage, MeetingEquipment } from './types';
 import { normalizeTeamMember } from './team';
 
 interface StoreState {
@@ -13,6 +13,8 @@ interface StoreState {
   budget: Budget;
   currentUser: string | null;
   chatMessages: ChatMessage[];
+  attendance: AttendanceRecord[];
+  hanukkahResponses: HanukkahResponse[];
 }
 
 interface StoreContextType extends StoreState {
@@ -44,11 +46,12 @@ interface StoreContextType extends StoreState {
   removeExpense: (id: string) => Promise<void>;
   setTotalBudget: (total: number) => void;
   addChannelMessage: (message: Omit<ChatMessage, 'id'>) => void;
+  updateAttendance: (candidateId: string, meetingId: string, changes: Partial<Pick<AttendanceRecord, 'status' | 'note'>>) => Promise<void>;
 }
 
 const defaultState: StoreState = {
   equipment: [], meetingEquipment: [], logisticsEmailRecipients: [], requirements: [], meetings: [], activityEvents: [], candidates: [],
-  budget: { totalAnnual: 5000, expenses: [] }, currentUser: null, chatMessages: [],
+  budget: { totalAnnual: 5000, expenses: [] }, currentUser: null, chatMessages: [], attendance: [], hanukkahResponses: [],
 };
 
 async function sendStoreAction(action: string, payload: unknown = {}) {
@@ -248,13 +251,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const removeExpense = async (id: string) => { await sendStoreAction('budget.expense.remove', { id }); };
   const setTotalBudget = async (totalAnnual: number) => sendStoreAction('budget.total', { totalAnnual });
   const addChannelMessage = async (message: Omit<ChatMessage, 'id'>) => sendStoreAction('chat.add', { message });
+  const updateAttendance = async (candidateId: string, meetingId: string, changes: Partial<Pick<AttendanceRecord, 'status' | 'note'>>) => { await sendStoreAction('attendance.update', { candidateId, meetingId, changes }); };
 
   return (
     <StoreContext.Provider value={{
       ...state, syncStatus, hasLoaded, retrySync, setCurrentUser, addEquipment, updateEquipment, removeEquipment, updateEquipmentStatus, addRequirement, toggleRequirement,
       addMeeting, removeMeeting, updateMeeting, addCandidate, addCandidates, updateCandidateStatus,
       removeCandidate, removeAllCandidates, addCandidateMessage, addMeetingEquipment, updateMeetingEquipment,
-      removeMeetingEquipment, setLogisticsEmailRecipients, addExpense, updateExpense, removeExpense, setTotalBudget, addChannelMessage,
+      removeMeetingEquipment, setLogisticsEmailRecipients, addExpense, updateExpense, removeExpense, setTotalBudget, addChannelMessage, updateAttendance,
     }}>
       {children}
     </StoreContext.Provider>

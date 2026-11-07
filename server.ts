@@ -5,6 +5,7 @@ import storeHandler, { saveWebhookCandidate } from "./api/store";
 import receiptHandler from "./api/receipt";
 import feedbackHandler from "./api/feedback";
 import feedbackAdminHandler from "./api/feedback-admin";
+import hanukkahHandler from "./api/hanukkah";
 
 async function startServer() {
   const app = express();
@@ -16,6 +17,7 @@ async function startServer() {
   app.all("/api/receipt", (req, res) => receiptHandler(req, res));
   app.all("/api/feedback", (req, res) => feedbackHandler(req, res));
   app.all("/api/feedback-admin", (req, res) => feedbackAdminHandler(req, res));
+  app.all("/api/hanukkah", (req, res) => hanukkahHandler(req, res));
 
   // API route for Google Forms webhook
   app.post("/api/webhook/forms", async (req, res) => {

@@ -34,7 +34,7 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
   
   const navItems = [
     { id: 'dashboard', label: 'מסך בית', icon: LayoutDashboard },
-    { id: 'candidates', label: 'מיונים', icon: ClipboardList },
+    { id: 'candidates', label: 'סטודנטים', icon: ClipboardList },
     { id: 'logistics', label: 'לוגיסטיקה', icon: Package },
     { id: 'syllabus', label: 'סילבוס', icon: Calendar },
     { id: 'budget', label: 'תקציב', icon: Wallet },
@@ -73,12 +73,12 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
+              aria-current={isActive ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-4 py-3 text-right font-bold transition-all duration-300 relative group ${
                 isActive 
                   ? 'bg-brand text-white rounded-2xl border-[3px] border-black/40 shadow-[0_4px_0_0_rgba(0,0,0,0.4),inset_0_4px_0_0_rgba(255,255,255,0.3)] transform -translate-y-1' 
                   : 'text-text-muted hover:text-text-main hover:bg-surface-alt rounded-lg'
               }`}
-              style={isActive ? { textShadow: '0px 2px 0px rgba(0,0,0,0.3)' } : {}}
             >
               <Icon size={20} className={`relative z-10 ${isActive ? 'text-white drop-shadow-md' : 'group-hover:text-brand'}`} />
               <span className="relative z-10">{item.label}</span>
@@ -93,7 +93,7 @@ export default function Sidebar({ activeTab, setActiveTab, isDarkMode, setIsDark
         </div>
         <button 
           onClick={() => setIsDarkMode(!isDarkMode)}
-          className="gaming-button-outline w-full !text-text-main !border-text-main hover:!bg-text-main hover:!text-surface"
+          className="gaming-button-outline w-full !text-text-main !border-text-main"
           style={{ boxShadow: '4px 4px 0px 0px var(--theme-text-main)' }}
         >
           {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}

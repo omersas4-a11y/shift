@@ -75,6 +75,22 @@ export interface Expense {
   receiptPath?: string;
 }
 
+export interface AttendanceRecord {
+  id: string;
+  candidateId: string;
+  meetingId: string;
+  status: 'present' | 'absent' | '';
+  note: string;
+}
+
+export interface HanukkahResponse {
+  id: string;
+  name: string;
+  preference: 'alternate_day' | 'extend_semester';
+  days: string[];
+  createdAt: string;
+}
+
 export interface ActivityEvent {
   id: string;
   category: 'logistics' | 'candidates' | 'syllabus' | 'budget';
